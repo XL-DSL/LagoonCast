@@ -553,7 +553,7 @@ def risk_driver(
 # ==========================================================
 
 @st.dialog(
-    "AquaCast Day Details",
+    "LagoonCast Day Details",
     width="large",
 )
 def show_day_details(
@@ -708,7 +708,7 @@ def show_day_details(
     if period == "past":
 
         st.caption(
-            "This value is a reconstructed AquaCast model "
+            "This value is a reconstructed LagoonCast model "
             "estimate, not a laboratory measurement or a "
             "forecast that was necessarily saved on that date."
         )
@@ -743,7 +743,7 @@ def show_day_details(
 # ==========================================================
 
 st.title(
-    "15-Day AquaCast Timeline"
+    "15-Day LagoonCast Timeline"
 )
 
 
@@ -767,7 +767,7 @@ st.html(
 try:
 
     with st.spinner(
-        "Building AquaCast timeline..."
+        "Building LagoonCast timeline..."
     ):
 
         recent = load_recent_estimates(
@@ -782,7 +782,7 @@ try:
 except Exception:
 
     st.error(
-        "The AquaCast timeline is temporarily unavailable."
+        "The LagoonCast timeline is temporarily unavailable."
     )
 
     st.link_button(
@@ -1079,7 +1079,7 @@ st.html(
     </h2>
 
     <span>
-        Current AquaCast forecast
+        Current LagoonCast forecast
     </span>
 
 </div>
