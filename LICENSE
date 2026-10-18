@@ -1,21 +1,35 @@
-MIT License
+Copyright © 2026 Xiaohan Li. All rights reserved.
 
-Copyright (c) 2026 Xiaohan Li
+LagoonCast and its original source code, documentation, interface content,
+graphics, and project materials are protected by copyright.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This repository is made publicly available for viewing, educational review,
+project evaluation, research review, and portfolio purposes.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Except for rights provided by GitHub's Terms of Service and rights otherwise
+provided by applicable law, no license is granted to copy, modify, distribute,
+publish, sublicense, sell, commercially use, or create derivative works from
+the original materials in this repository without prior written permission
+from the copyright holder.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Permission for reuse may be requested from the copyright holder.
+
+The name "LagoonCast," associated branding, logos, and other source-identifying
+marks are not licensed for use by third parties.
+
+Third-party libraries, packages, datasets, APIs, and other materials included
+in or referenced by this project remain subject to their respective licenses,
+terms, and conditions.
+
+THIS SOFTWARE AND THE RELATED MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY
+OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, RELIABILITY, OR
+NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, LOSS,
+INJURY, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+SOFTWARE, DATA, FORECASTS, DOCUMENTATION, OR USE OF THIS PROJECT.
+
+LagoonCast is an experimental research project and is not an official
+water-quality advisory, public-health service, or substitute for official
+laboratory testing, beach postings, closures, or government guidance.
