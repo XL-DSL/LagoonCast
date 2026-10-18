@@ -19,7 +19,7 @@ st.title(
 )
 
 st.caption(
-    "How to interpret AquaCast and where its information comes from."
+    "How to interpret LagoonCast and where its information comes from."
 )
 
 
@@ -71,7 +71,7 @@ st.subheader(
 
 
 st.write(
-    "AquaCast estimates the probability that E. coli or "
+    "LagoonCast estimates the probability that E. coli or "
     "Enterococcus concentrations exceed the model's "
     "elevated-risk concentration threshold. It does not "
     "predict an exact bacteria concentration."
@@ -79,7 +79,7 @@ st.write(
 
 
 st.write(
-    "Safe, Caution, and Unsafe are AquaCast model "
+    "Safe, Caution, and Unsafe are LagoonCast model "
     "communication categories. They should not be interpreted "
     "as official government posting or closure categories."
 )
@@ -150,7 +150,7 @@ with st.expander(
 
     st.write(
         "Historical E. coli and Enterococcus observations "
-        "are used to train and evaluate AquaCast. "
+        "are used to train and evaluate LagoonCast. "
         "Laboratory observations are not continuously available, "
         "so the live forecast is not a real-time bacteria sensor."
     )
@@ -190,7 +190,7 @@ st.subheader(
 
 st.write(
     "Check current official beach information, follow posted "
-    "signage, and use local public-health guidance. AquaCast "
+    "signage, and use local public-health guidance. LagoonCast "
     "should be treated as supplemental research information only."
 )
 
