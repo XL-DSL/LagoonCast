@@ -1,12 +1,14 @@
 import streamlit as st
 
+from utils.ui import APP_NAME
+
 
 # ==========================================================
 # APP CONFIGURATION
 # ==========================================================
 
 st.set_page_config(
-    page_title="BeachGuard | AquaCast Water Quality Forecast",
+    page_title=f"{APP_NAME} | Water Quality Forecast",
     page_icon="🌊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -50,7 +52,7 @@ risk_details = st.Page(
 
 about = st.Page(
     "pages/2_About.py",
-    title="About AquaCast",
+    title=f"About {APP_NAME}",
 )
 
 
@@ -78,7 +80,7 @@ limitations = st.Page(
 
 navigation = st.navigation(
     {
-        "🌊 BeachGuard": [
+        f"🌊 {APP_NAME}": [
             current_forecast,
             timeline,
             recent_trends,
