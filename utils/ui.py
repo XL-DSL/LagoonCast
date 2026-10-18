@@ -6,19 +6,13 @@ import streamlit as st
 
 
 # ==========================================================
-# CONSTANTS
+# APP / SITE CONSTANTS
 # ==========================================================
 
-# San Mateo County currently directs users to this
-# Beach Data Map for the most recent recreational-water
-# sampling information.
-OFFICIAL_URL = (
-    "https://www.google.com/maps/d/u/0/viewer?femb=1&ll=37.5615491815124%2C-122.28861964163302&mid=1Y0U-5M0-ej_PnH8i1mJYFaXBlok-8fE&z=16"
-)
+APP_NAME = "LagoonCast"
 
-GITHUB_URL = (
-    "https://github.com/"
-    "XL-DSL/Aquacast-Beachgaurd"
+APP_TAGLINE = (
+    "Recreational Water Quality Forecast"
 )
 
 SITE_NAME = (
@@ -30,11 +24,30 @@ PACIFIC_TIMEZONE = (
 )
 
 
+# San Mateo County Beach Data Map
+OFFICIAL_URL = (
+    "https://www.google.com/maps/d/viewer"
+    "?femb=1"
+    "&ll=37.41494222054769,-122.38601015000002"
+    "&mid=1Y0U-5M0-ej_PnH8i1mJYFaXBlok-8fE"
+    "&z=10"
+)
+
+
+# Keep the current repository URL until the repository
+# itself is renamed.
+GITHUB_URL = (
+    "https://github.com/"
+    "XL-DSL/Aquacast-Beachgaurd"
+)
+
+
 # ==========================================================
 # RISK HELPERS
 # ==========================================================
 
 def risk_class(risk):
+
     return {
         "Safe": "safe",
         "Caution": "caution",
@@ -46,6 +59,7 @@ def risk_class(risk):
 
 
 def risk_icon(risk):
+
     return {
         "Safe": "✓",
         "Caution": "!",
@@ -57,23 +71,27 @@ def risk_icon(risk):
 
 
 def interpretation(risk):
+
     return {
-        "Safe": (
-            "The model currently predicts a low likelihood "
-            "of elevated bacterial risk."
-        ),
+        "Safe":
+            (
+                "The model currently predicts a low likelihood "
+                "of elevated bacterial risk."
+            ),
 
-        "Caution": (
-            "The model predicts moderate or uncertain risk. "
-            "Check official San Mateo County beach information "
-            "before entering the water."
-        ),
+        "Caution":
+            (
+                "The model predicts moderate or uncertain risk. "
+                "Check official San Mateo County beach information "
+                "before entering the water."
+            ),
 
-        "Unsafe": (
-            "The model predicts elevated bacterial risk. "
-            "Avoid water contact and follow official "
-            "San Mateo County guidance."
-        ),
+        "Unsafe":
+            (
+                "The model predicts elevated bacterial risk. "
+                "Avoid water contact and follow official "
+                "San Mateo County guidance."
+            ),
 
     }.get(
         str(risk).strip(),
@@ -89,50 +107,62 @@ def risk_driver_text(
     e_coli_risk,
     enterococcus_risk,
 ):
+
     rank = {
         "Safe": 0,
         "Caution": 1,
         "Unsafe": 2,
     }
 
+
     e_coli_risk = str(
         e_coli_risk
     ).strip()
 
+
     enterococcus_risk = str(
         enterococcus_risk
     ).strip()
+
 
     e_rank = rank.get(
         e_coli_risk,
         0,
     )
 
+
     entero_rank = rank.get(
         enterococcus_risk,
         0,
     )
 
+
     if e_rank > entero_rank:
+
         return (
             "Overall risk is currently driven "
             "by the E. coli prediction."
         )
 
+
     if entero_rank > e_rank:
+
         return (
             "Overall risk is currently driven "
             "by the Enterococcus prediction."
         )
 
+
     if (
         e_coli_risk == "Safe"
         and enterococcus_risk == "Safe"
     ):
+
         return (
             "Both bacteria are currently "
             "classified as Safe."
         )
+
 
     return (
         "Both bacteria are currently classified "
@@ -141,21 +171,146 @@ def risk_driver_text(
 
 
 # ==========================================================
-# SUCCESSFUL GENERATION TIME
+# TIMESTAMP HELPERS
 # ==========================================================
 
-def _format_pacific_timestamp(
-    timestamp
+def _row_value(
+    row,
+    field,
 ):
+
+    if row is None:
+        return None
+
+
+    try:
+
+        value = row.get(
+            field
+        )
+
+    except Exception:
+
+        return None
+
+
+    if value is None:
+        return None
+
+
+    try:
+
+        if pd.isna(
+            value
+        ):
+
+            return None
+
+    except Exception:
+
+        pass
+
+
+    text = str(
+        value
+    ).strip()
+
+
+    if (
+        text == ""
+        or text.lower()
+        in {
+            "none",
+            "nan",
+            "nat",
+        }
+    ):
+
+        return None
+
+
+    return value
+
+
+def _to_pacific_timestamp(
+    value,
+):
+
+    if value is None:
+        return None
+
+
+    timestamp = pd.to_datetime(
+        value,
+        errors="coerce",
+    )
+
+
+    if pd.isna(
+        timestamp
+    ):
+
+        return None
+
+
+    try:
+
+        if timestamp.tzinfo is None:
+
+            timestamp = (
+                timestamp
+                .tz_localize(
+                    PACIFIC_TIMEZONE
+                )
+            )
+
+        else:
+
+            timestamp = (
+                timestamp
+                .tz_convert(
+                    PACIFIC_TIMEZONE
+                )
+            )
+
+    except Exception:
+
+        return None
+
+
+    return timestamp
+
+
+def _format_timestamp(
+    timestamp,
+    include_time=True,
+):
+
+    if timestamp is None:
+
+        return "Unavailable"
+
+
     date_text = timestamp.strftime(
         "%b %d, %Y"
     )
 
-    time_text = timestamp.strftime(
-        "%I:%M %p"
-    ).lstrip(
-        "0"
+
+    if not include_time:
+
+        return date_text
+
+
+    time_text = (
+        timestamp
+        .strftime(
+            "%I:%M %p"
+        )
+        .lstrip(
+            "0"
+        )
     )
+
 
     return (
         f"{date_text} · "
@@ -163,114 +318,161 @@ def _format_pacific_timestamp(
     )
 
 
-def successful_generation_text(
-    row=None,
-    using_live=True,
+def _looks_date_only(
+    value,
 ):
-    if using_live:
 
-        now = pd.Timestamp.now(
-            tz=PACIFIC_TIMEZONE
-        )
+    if value is None:
 
-        return _format_pacific_timestamp(
-            now
-        )
+        return False
 
 
-    if row is not None:
-
-        for field in [
-            "model_run_timestamp",
-            "generated_at",
-            "data_last_updated",
-        ]:
-
-            try:
-
-                value = row.get(
-                    field
-                )
-
-            except Exception:
-
-                value = None
+    text = str(
+        value
+    ).strip()
 
 
-            if value is None:
-                continue
-
-
-            timestamp = pd.to_datetime(
-                value,
-                errors="coerce",
-            )
-
-
-            if pd.isna(
-                timestamp
-            ):
-                continue
-
-
-            try:
-
-                if timestamp.tzinfo is None:
-
-                    timestamp = (
-                        timestamp
-                        .tz_localize(
-                            PACIFIC_TIMEZONE
-                        )
-                    )
-
-                else:
-
-                    timestamp = (
-                        timestamp
-                        .tz_convert(
-                            PACIFIC_TIMEZONE
-                        )
-                    )
-
-            except Exception:
-
-                pass
-
-
-            # If only a date was stored, do not imply
-            # that midnight was an exact run time.
-            if (
-                timestamp.hour == 0
-                and timestamp.minute == 0
-                and timestamp.second == 0
-            ):
-
-                return (
-                    timestamp.strftime(
-                        "%b %d, %Y"
-                    )
-                    + " · PT"
-                )
-
-
-            return (
-                _format_pacific_timestamp(
-                    timestamp
-                )
-            )
-
-
-    return "Time unavailable"
+    return len(
+        text
+    ) <= 10
 
 
 # ==========================================================
-# DATA FRESHNESS
+# FORECAST GENERATION TIME
+# ==========================================================
+
+def successful_generation_text(
+    row=None,
+    using_live=None,
+):
+
+    for field in [
+        "model_run_timestamp",
+        "generated_at",
+        "forecast_generated_at",
+    ]:
+
+        raw_value = _row_value(
+            row,
+            field,
+        )
+
+
+        if raw_value is None:
+
+            continue
+
+
+        timestamp = _to_pacific_timestamp(
+            raw_value
+        )
+
+
+        if timestamp is None:
+
+            continue
+
+
+        if _looks_date_only(
+            raw_value
+        ):
+
+            return (
+                _format_timestamp(
+                    timestamp,
+                    include_time=False,
+                )
+                + " · exact run time unavailable"
+            )
+
+
+        return _format_timestamp(
+            timestamp,
+            include_time=True,
+        )
+
+
+    raw_value = _row_value(
+        row,
+        "data_last_updated",
+    )
+
+
+    if raw_value is not None:
+
+        timestamp = _to_pacific_timestamp(
+            raw_value
+        )
+
+
+        if timestamp is not None:
+
+            return (
+                _format_timestamp(
+                    timestamp,
+                    include_time=False,
+                )
+                + " · exact run time unavailable"
+            )
+
+
+    return "Generation time unavailable"
+
+
+# ==========================================================
+# LATEST INPUT DATE
+# ==========================================================
+
+def latest_input_text(
+    row=None,
+):
+
+    for field in [
+        "input_data_end_date",
+        "source_record_date",
+        "data_last_updated",
+    ]:
+
+        raw_value = _row_value(
+            row,
+            field,
+        )
+
+
+        if raw_value is None:
+
+            continue
+
+
+        timestamp = pd.to_datetime(
+            raw_value,
+            errors="coerce",
+        )
+
+
+        if pd.isna(
+            timestamp
+        ):
+
+            continue
+
+
+        return timestamp.strftime(
+            "%b %d, %Y"
+        )
+
+
+    return "Input date unavailable"
+
+
+# ==========================================================
+# FRESHNESS CHIP
 # ==========================================================
 
 def freshness_chip(
-    updated_date
+    updated_date,
 ):
+
     updated = pd.to_datetime(
         updated_date,
         errors="coerce",
@@ -283,24 +485,43 @@ def freshness_chip(
 
         return (
             '<span class="bg-fresh-chip stale">'
-            'Update time unavailable'
+            'Input date unavailable'
             '</span>'
         )
 
 
-    if updated.tzinfo is not None:
+    try:
 
-        updated = (
-            updated.tz_localize(
-                None
+        if updated.tzinfo is not None:
+
+            updated = (
+                updated
+                .tz_convert(
+                    PACIFIC_TIMEZONE
+                )
+                .tz_localize(
+                    None
+                )
             )
+
+    except Exception:
+
+        pass
+
+
+    today = (
+        pd.Timestamp.now(
+            tz=PACIFIC_TIMEZONE
         )
+        .tz_localize(
+            None
+        )
+        .normalize()
+    )
 
 
     days_old = (
-        pd.Timestamp(
-            date.today()
-        )
+        today
         - updated.normalize()
     ).days
 
@@ -308,7 +529,7 @@ def freshness_chip(
     if days_old <= 0:
 
         text = (
-            "Updated today"
+            "Latest input: today"
         )
 
         css_class = (
@@ -319,7 +540,7 @@ def freshness_chip(
     elif days_old == 1:
 
         text = (
-            "Updated yesterday"
+            "Latest input: yesterday"
         )
 
         css_class = (
@@ -330,7 +551,7 @@ def freshness_chip(
     elif days_old <= 7:
 
         text = (
-            f"Updated {days_old} days ago"
+            f"Latest input: {days_old} days ago"
         )
 
         css_class = (
@@ -341,7 +562,7 @@ def freshness_chip(
     else:
 
         text = (
-            "Outdated · Last updated "
+            "Older input · "
             + updated.strftime(
                 "%b %d, %Y"
             )
@@ -369,6 +590,7 @@ def probability_meter(
     unsafe_threshold,
     risk,
 ):
+
     probability = max(
         0.0,
         min(
@@ -429,10 +651,8 @@ def probability_meter(
     )
 
 
-    css_class = (
-        risk_class(
-            risk
-        )
+    css_class = risk_class(
+        risk
     )
 
 
@@ -519,8 +739,9 @@ def probability_meter(
 # ==========================================================
 
 def render_footer(
-    model_version=None
+    model_version=None,
 ):
+
     version_html = ""
 
 
@@ -544,7 +765,7 @@ def render_footer(
 
     <div>
 
-        BeachGuard
+        {APP_NAME}
         &nbsp;·&nbsp;
         Experimental research prototype
         {version_html}
@@ -579,7 +800,7 @@ def render_footer(
         </span>
 
         <span>
-            AquaCast methodology
+            LagoonCast methodology
         </span>
 
     </div>
