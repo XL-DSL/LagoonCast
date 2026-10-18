@@ -46,7 +46,7 @@ except Exception:
     except Exception:
 
         st.error(
-            "The AquaCast map is temporarily unavailable."
+            "The LagoonCast map is temporarily unavailable."
         )
 
         st.link_button(
@@ -149,7 +149,7 @@ st.title(
 )
 
 st.caption(
-    "Current AquaCast forecast location at "
+    "Current LagoonCast forecast location at "
     f"{SITE_NAME}."
 )
 
@@ -325,7 +325,7 @@ deck = pdk.Deck(
     tooltip={
         "html":
             "<b>{site}</b><br/>"
-            "Current AquaCast forecast: {overall}<br/>"
+            "Current LagoonCast forecast: {overall}<br/>"
             "E. coli: {ecoli}<br/>"
             "Enterococcus: {entero}<br/>"
             "Forecast date: {date}",
@@ -388,9 +388,9 @@ with button2:
 # ==========================================================
 
 source_text = (
-    "Live weather-based AquaCast forecast"
+    "Live weather-based LagoonCast forecast"
     if live_prediction
-    else "Latest validated saved AquaCast forecast"
+    else "Latest validated saved LagoonCast forecast"
 )
 
 
@@ -402,7 +402,7 @@ st.caption(
 
 
 st.warning(
-    "The map shows AquaCast's pilot forecast location. "
+    "The map shows LagoonCast's pilot forecast location. "
     "It does not indicate an official beach closure "
     "or advisory."
 )
