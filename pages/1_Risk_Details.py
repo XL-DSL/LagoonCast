@@ -94,7 +94,7 @@ st.html(
 
         <p>
             See the two bacteria-specific predictions
-            that determine the overall AquaCast forecast
+            that determine the overall LagoonCast forecast
             for {SITE_NAME}.
         </p>
 
