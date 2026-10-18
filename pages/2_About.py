@@ -21,7 +21,7 @@ st.title(
 )
 
 st.caption(
-    "A plain-language overview of what BeachGuard "
+    "A plain-language overview of what LagoonCast "
     "does and why it was created."
 )
 
@@ -174,7 +174,7 @@ with step3:
         font-size:0.82rem;
         line-height:1.5;
     ">
-        BeachGuard translates the probabilities
+        LagoonCast translates the probabilities
         into Safe, Caution, and Unsafe model
         classifications for easier interpretation.
     </p>

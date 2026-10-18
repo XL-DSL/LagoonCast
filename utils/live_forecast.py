@@ -721,7 +721,7 @@ def _fetch_weather():
             url,
             headers={
                 "User-Agent":
-                    "BeachGuard-AquaCast/2.1"
+                    "LagoonCast-AquaCast/2.1"
             },
         )
     )

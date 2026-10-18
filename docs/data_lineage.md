@@ -2,7 +2,7 @@
 
 ## Project
 
-AquaCast / BeachGuard uses public water-quality and environmental data to produce experimental bacteria-risk predictions for a pilot recreational water site.
+LagoonCast uses public water-quality and environmental data to produce experimental bacteria-risk predictions for a pilot recreational water site.
 
 ## Main backend dataset
 

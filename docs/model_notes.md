@@ -2,7 +2,7 @@
 
 ## Purpose
 
-AquaCast estimates the probability that bacteria levels may exceed recreational water-quality thresholds at a pilot recreational water site.
+LagoonCast estimates the probability that bacteria levels may exceed recreational water-quality thresholds at a pilot recreational water site.
 
 The project currently produces model outputs for:
 

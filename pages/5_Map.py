@@ -397,7 +397,7 @@ source_text = (
 st.caption(
     f"Forecast source: {source_text}. "
     "Map marker color uses the same Safe / Caution / "
-    "Unsafe classification shown throughout BeachGuard."
+    "Unsafe classification shown throughout LagoonCast."
 )
 
 

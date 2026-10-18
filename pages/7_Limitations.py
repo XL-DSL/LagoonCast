@@ -244,7 +244,7 @@ st.html(
         Official information takes priority.
     </strong>
 
-    BeachGuard should never replace beach signage,
+    LagoonCast should never replace beach signage,
     laboratory results, public-health advisories,
     or official closures.
 

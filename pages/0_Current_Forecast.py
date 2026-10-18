@@ -732,7 +732,7 @@ st.html(
             Important:
         </strong>
 
-        BeachGuard is an experimental decision-support
+        LagoonCast is an experimental decision-support
         forecast. It does not directly measure bacteria
         and does not replace official laboratory results,
         advisories, or closures.

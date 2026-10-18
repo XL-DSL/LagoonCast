@@ -15,7 +15,7 @@ from utils.ui import (
 
 
 st.set_page_config(
-    page_title="Risk Details | BeachGuard",
+    page_title="Risk Details | LagoonCast",
     page_icon="🌊",
     layout="wide",
 )
@@ -117,7 +117,7 @@ st.html(
             Each card shows the model-estimated probability
             that one bacterial indicator exceeds its
             elevated-risk concentration threshold.
-            The overall BeachGuard status uses the more
+            The overall LagoonCast status uses the more
             serious of the two individual risk levels.
         </p>
 

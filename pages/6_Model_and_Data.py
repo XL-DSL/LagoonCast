@@ -490,7 +490,7 @@ st.info(
     "AquaCast probability display thresholds are different "
     "concepts. Concentration thresholds define the event "
     "the model is trying to predict. Probability thresholds "
-    "determine how BeachGuard communicates model risk."
+    "determine how LagoonCast communicates model risk."
 )
 
 

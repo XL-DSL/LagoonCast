@@ -45,7 +45,7 @@ st.html(
 
     <br>
 
-    BeachGuard is an experimental research prototype.
+    LagoonCast is an experimental research prototype.
     It does not issue government advisories, postings,
     or closures.
 
