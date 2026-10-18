@@ -17,7 +17,7 @@ apply_styles()
 # ==========================================================
 
 st.title(
-    "About AquaCast"
+    "About LagoonCast"
 )
 
 st.caption(
@@ -39,7 +39,7 @@ st.write(
     "Recreational-water bacteria measurements depend on "
     "laboratory sampling, so information about changing "
     "conditions may not always be available immediately. "
-    "AquaCast explores whether environmental information "
+    "LagoonCast explores whether environmental information "
     "such as recent rainfall and temperature can provide "
     "an additional early indication of elevated bacterial risk."
 )
@@ -50,7 +50,7 @@ st.write(
 # ==========================================================
 
 st.subheader(
-    "How AquaCast works"
+    "How LagoonCast works"
 )
 
 
@@ -91,7 +91,7 @@ with step1:
         font-size:0.82rem;
         line-height:1.5;
     ">
-        AquaCast uses recent and forecast environmental
+        LagoonCast uses recent and forecast environmental
         information such as rainfall and temperature.
     </p>
 
@@ -117,7 +117,7 @@ with step2:
         font-weight:800;
         font-size:0.75rem;
     ">
-        2 · AQUACAST MODEL
+        2 · LagoonCast MODEL
     </div>
 
     <h3 style="
@@ -212,7 +212,7 @@ with st.expander(
     st.write(
         "The probability that the model assigns to bacterial "
         "concentrations exceeding the concentration threshold "
-        "used by AquaCast. A probability is not the same thing "
+        "used by LagoonCast. A probability is not the same thing "
         "as a measured bacteria concentration."
     )
 
@@ -239,7 +239,7 @@ st.subheader(
 
 
 st.write(
-    f"AquaCast is currently demonstrated at {SITE_NAME}. "
+    f"LagoonCast is currently demonstrated at {SITE_NAME}. "
     "The project is intended as a research prototype and "
     "a framework that could be evaluated at additional "
     "recreational-water sites in the future."
