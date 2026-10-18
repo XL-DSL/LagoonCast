@@ -40,7 +40,7 @@ st.title(
 )
 
 st.caption(
-    "Reconstructed AquaCast model estimates for "
+    "Reconstructed LagoonCast model estimates for "
     f"{SITE_NAME}. These are historical model estimates "
     "generated from available environmental data, not "
     "forecasts that were necessarily saved on those dates."
@@ -72,7 +72,7 @@ window = st.select_slider(
 try:
 
     with st.spinner(
-        "Loading recent AquaCast estimates..."
+        "Loading recent LagoonCast estimates..."
     ):
 
         trends = load_recent_estimates(
@@ -82,7 +82,7 @@ try:
 except Exception:
 
     st.error(
-        "Recent AquaCast trends are temporarily unavailable."
+        "Recent LagoonCast trends are temporarily unavailable."
     )
 
     st.link_button(
@@ -124,7 +124,7 @@ trends = (
 if trends.empty:
 
     st.error(
-        "No recent AquaCast estimates are available."
+        "No recent LagoonCast estimates are available."
     )
 
     st.stop()
@@ -783,7 +783,7 @@ with st.expander(
 
 st.info(
     "Previous-day values on this page are reconstructed "
-    "AquaCast model estimates. They are not laboratory "
+    "LagoonCast model estimates. They are not laboratory "
     "measurements and should not be interpreted as official "
     "historical advisories."
 )
