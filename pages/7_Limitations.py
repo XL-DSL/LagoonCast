@@ -19,7 +19,7 @@ st.title(
 )
 
 st.caption(
-    "Important boundaries on how AquaCast should be interpreted."
+    "Important boundaries on how LagoonCast should be interpreted."
 )
 
 
@@ -59,7 +59,7 @@ with card1:
         line-height:1.5;
         margin-top:0.45rem;
     ">
-        AquaCast is a research prototype and does
+        LagoonCast is a research prototype and does
         not issue government advisories or closures.
     </div>
 
@@ -132,7 +132,7 @@ with card3:
         line-height:1.5;
         margin-top:0.45rem;
     ">
-        AquaCast estimates risk from environmental
+        LagoonCast estimates risk from environmental
         information. It does not continuously measure
         bacteria in the water.
     </div>
@@ -156,7 +156,7 @@ with st.expander(
 ):
 
     st.write(
-        "AquaCast learns statistical relationships from historical "
+        "LagoonCast learns statistical relationships from historical "
         "observations. Those relationships may change over time, "
         "and conditions outside the historical range may produce "
         "less reliable predictions."
@@ -191,9 +191,9 @@ with st.expander(
 ):
 
     st.write(
-        "Future AquaCast predictions depend partly on forecast "
+        "Future LagoonCast predictions depend partly on forecast "
         "environmental conditions. Rainfall and temperature "
-        "forecasts can change, so AquaCast uncertainty generally "
+        "forecasts can change, so LagoonCast uncertainty generally "
         "increases farther into the future."
     )
 
