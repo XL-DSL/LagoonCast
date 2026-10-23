@@ -50,24 +50,6 @@ def _format_date(value):
     )
 
 
-def _format_timestamp(value):
-
-    dt = pd.to_datetime(
-        value,
-        errors="coerce",
-    )
-
-    return (
-        dt.strftime(
-            "%b %d, %Y at %I:%M %p"
-        )
-        if pd.notna(
-            dt
-        )
-        else "Unavailable"
-    )
-
-
 # ==========================================================
 # LOAD CURRENT LIVE FORECAST
 # ==========================================================
@@ -313,7 +295,7 @@ freshness = freshness_chip(
 
 
 forecast_generated_text = (
-    _format_timestamp(
+    _format_date(
         latest.get(
             "forecast_generated_at"
         )
@@ -418,7 +400,7 @@ st.html(
     <div class="bg-inline-notice">
 
         <strong>
-            Forecast generated:
+            Last successfully generated:
         </strong>
 
         {forecast_generated_text}
