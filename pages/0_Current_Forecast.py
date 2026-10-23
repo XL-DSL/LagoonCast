@@ -1,4 +1,5 @@
 import pandas as pd
+import pydeck as pdk
 import streamlit as st
 
 from utils.live_forecast import load_live_latest
@@ -36,8 +37,8 @@ SITE_LON = -122.2910
 # ==========================================================
 # LOAD CURRENT PREDICTION
 # Try live forecast first.
-# If live forecasting fails, use the latest validated saved
-# prediction instead.
+# If live forecasting fails, do not present an old saved
+# prediction as a current forecast.
 # ==========================================================
 
 live_prediction = True
@@ -50,12 +51,34 @@ except Exception as exc:
     live_prediction = False
     live_error = exc
 
+    historical_text = ""
+
     try:
-        latest = load_valid_latest()
+        historical = load_valid_latest()
+
+        historical_date = pd.to_datetime(
+            historical.get(
+                "prediction_date"
+            ),
+            errors="coerce",
+        )
+
+        if pd.notna(
+            historical_date
+        ):
+            historical_text = (
+                "<p>"
+                "The latest saved LagoonCast prediction is historical "
+                f"({historical_date.strftime('%b %d, %Y')}) "
+                "and is not being displayed as the current forecast."
+                "</p>"
+            )
 
     except Exception:
-        st.html(
-            f"""
+        historical_text = ""
+
+    st.html(
+        f"""
 <div class="bg-empty-state">
 
     <div class="bg-empty-icon">
@@ -63,14 +86,16 @@ except Exception as exc:
     </div>
 
     <h2>
-        Forecast temporarily unavailable
+        Current forecast unavailable
     </h2>
 
     <p>
-        AquaCast cannot retrieve a valid forecast
+        LagoonCast cannot retrieve a valid live forecast
         right now. Please check the official
         San Mateo County water-quality advisory.
     </p>
+
+    {historical_text}
 
     <a
         class="bg-primary-button"
@@ -82,9 +107,9 @@ except Exception as exc:
 
 </div>
 """
-        )
+    )
 
-        st.stop()
+    st.stop()
 
 
 # ==========================================================
@@ -399,7 +424,7 @@ st.html(
             {ecoli_meter}
 
             <div class="bg-risk-threshold">
-                Concentration threshold:
+                Model-defined concentration threshold:
                 <strong>235 MPN/100 mL</strong>
             </div>
 
@@ -440,7 +465,7 @@ st.html(
             {entero_meter}
 
             <div class="bg-risk-threshold">
-                Concentration threshold:
+                Model-defined concentration threshold:
                 <strong>130 MPN/100 mL</strong>
             </div>
 
@@ -488,54 +513,162 @@ st.html(
 # MAP
 # ==========================================================
 
-map_left, map_center, map_right = st.columns(
-    [1, 10, 1]
+RISK_COLORS = {
+    "Safe": [
+        46,
+        125,
+        50,
+        210,
+    ],
+
+    "Caution": [
+        178,
+        106,
+        0,
+        210,
+    ],
+
+    "Unsafe": [
+        198,
+        40,
+        40,
+        210,
+    ],
+}
+
+
+marker_color = RISK_COLORS.get(
+    overall_risk,
+    [
+        102,
+        112,
+        133,
+        210,
+    ],
 )
 
-with map_center:
 
-    with st.container(
-        border=True
-    ):
+map_data = pd.DataFrame(
+    [
+        {
+            "lat":
+                SITE_LAT,
 
-        map_data = pd.DataFrame(
+            "lon":
+                SITE_LON,
+
+            "site":
+                "Parkside Aquatic Park",
+
+            "overall":
+                overall_risk,
+
+            "ecoli":
+                f"{ecoli_prob:.1%}",
+
+            "entero":
+                f"{entero_prob:.1%}",
+
+            "date":
+                prediction_text,
+        }
+    ]
+)
+
+
+layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=map_data,
+    get_position=[
+        "lon",
+        "lat",
+    ],
+    get_fill_color=marker_color,
+    get_line_color=[
+        255,
+        255,
+        255,
+        255,
+    ],
+    line_width_min_pixels=2,
+    stroked=True,
+    filled=True,
+    radius_min_pixels=8,
+    radius_max_pixels=12,
+    pickable=True,
+)
+
+
+view_state = pdk.ViewState(
+    latitude=SITE_LAT,
+    longitude=SITE_LON,
+    zoom=14.4,
+    pitch=0,
+)
+
+
+deck = pdk.Deck(
+    layers=[
+        layer
+    ],
+
+    initial_view_state=view_state,
+
+    tooltip={
+        "html":
+            "<b>{site}</b><br/>"
+            "Current LagoonCast forecast: {overall}<br/>"
+            "E. coli: {ecoli}<br/>"
+            "Enterococcus: {entero}<br/>"
+            "Forecast date: {date}",
+
+        "style":
             {
-                "lat": [
-                    SITE_LAT
-                ],
-                "lon": [
-                    SITE_LON
-                ],
-            }
-        )
+                "backgroundColor":
+                    "#172033",
 
-        st.map(
-            map_data,
-            zoom=14,
-        )
+                "color":
+                    "white",
+            },
+    },
+)
 
-        map_col1, map_col2 = st.columns(
-            [3, 1]
-        )
 
-        with map_col1:
+st.pydeck_chart(
+    deck,
+    width="stretch",
+)
 
-            st.caption(
-                f"📍 {SITE_NAME} · "
-                "Live LagoonCast model forecast"
-            )
 
-        with map_col2:
+button1, button2 = st.columns(
+    2
+)
 
-            st.link_button(
-                "Open larger map",
-                (
-                    "https://www.google.com/maps/search/"
-                    "?api=1&query="
-                    f"{SITE_LAT},{SITE_LON}"
-                ),
-                use_container_width=True,
-            )
+
+with button1:
+
+    st.link_button(
+        "Directions",
+        (
+            "https://www.google.com/maps/dir/"
+            "?api=1&destination="
+            f"{SITE_LAT},{SITE_LON}"
+        ),
+        width="stretch",
+    )
+
+
+with button2:
+
+    st.link_button(
+        "Open in Google Maps",
+        (
+            "https://www.google.com/maps/search/"
+            "?api=1&query="
+            f"{SITE_LAT},{SITE_LON}"
+        ),
+        width="stretch",
+    )
 
 
 # ==========================================================
