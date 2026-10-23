@@ -41,4 +41,3 @@ prev3_exceedance_rate
 prev5_exceedance_rate
 prev3_result_to_threshold_ratio_mean
 prev5_result_to_threshold_ratio_mean
-days_since_prev_sample
