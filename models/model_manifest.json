@@ -2,11 +2,11 @@
   "pipeline_version": "AquaCast_Model_Pipeline_Version_12",
   "seed": 42,
   "dataset_used": "/mnt/data/Aquacast15Years_Weekly.csv",
-  "generated_at": "2026-10-23T04:16:06",
+  "generated_at": "2026-10-23T05:46:25.591898",
   "models": {
     "E. coli": {
       "model": "Logistic Regression",
-      "feature_set": "expanded_no_tides",
+      "feature_set": "expanded_no_tides_live_safe",
       "locked_threshold": 0.27,
       "bacteria_threshold_mpn_100ml": 235.0,
       "features": [
@@ -52,11 +52,11 @@
         "prev3_exceedance_rate",
         "prev5_exceedance_rate",
         "prev3_result_to_threshold_ratio_mean",
-        "prev5_result_to_threshold_ratio_mean",
-        "days_since_prev_sample"
+        "prev5_result_to_threshold_ratio_mean"
       ],
       "model_file": "e_coli_current_best_model.joblib",
-      "feature_file": "e_coli_features.txt"
+      "feature_file": "e_coli_features.txt",
+      "deployment_note": "days_since_prev_sample removed from the deployed E. coli model because live laboratory gaps can extend far beyond the training distribution and can dominate current probabilities."
     },
     "Enterococcus": {
       "model": "Logistic Regression",
