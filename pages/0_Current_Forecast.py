@@ -519,12 +519,14 @@ with map_center:
         )
 
         with map_col1:
+
             st.caption(
                 f"📍 {SITE_NAME} · "
-                f"{source_text}"
+                "Live LagoonCast model forecast"
             )
 
         with map_col2:
+
             st.link_button(
                 "Open larger map",
                 (
@@ -534,8 +536,6 @@ with map_center:
                 ),
                 use_container_width=True,
             )
-
-
 # ==========================================================
 # SAFETY NOTICE
 # ==========================================================
