@@ -108,38 +108,52 @@ LagoonCast's current architecture performs **live model inference**. It is not s
 
 ```mermaid
 flowchart TD
-
-    A[Historical bacteria monitoring data<br/>California Water Boards / SWAMP]
-    B[Historical weather data<br/>NOAA / NCEI]
-    C[Model development and validation<br/>Python / scikit-learn]
+    A["Historical bacteria monitoring data<br/>California Water Boards / SWAMP"]
+    B["Historical weather data<br/>NOAA / NCEI"]
+    C["Model development and validation<br/>Python / scikit-learn"]
 
     A --> C
     B --> C
 
-    C --> D[Saved trained models<br/>E. coli + Enterococcus]
+    C --> D["Saved trained models<br/>E. coli + Enterococcus"]
 
-    E[Recent and forecast weather<br/>Open-Meteo]
-    F[Historical laboratory measurements]
+    E["Recent and forecast weather<br/>Open-Meteo"]
+    F["Historical laboratory measurements"]
 
-    E --> G[Live feature engineering]
+    E --> G["Live feature engineering"]
     F --> G
 
-    G --> H[E. coli model inference]
-    G --> I[Enterococcus model inference]
+    G --> H["E. coli model inference"]
+    G --> I["Enterococcus model inference"]
 
     D --> H
     D --> I
 
-    H --> J[Predicted exceedance probabilities]
+    H --> J["Predicted exceedance probabilities"]
     I --> J
 
-    J --> K[Safe / Caution / Unsafe classification]
-    K --> L[Streamlit LagoonCast interface]
+    J --> K["Safe / Caution / Unsafe classification"]
+    K --> L["Streamlit LagoonCast interface"]
 
-    M[Historical saved prediction data]
-    M -. historical reference / backup metadata .-> L
+    M["Historical saved prediction data"]
+    M -. "historical reference / backup metadata" .-> L
 ```
 
+### Primary Live Forecast Path
+
+The current forecasting path is:
+
+1. Retrieve recent and forecast weather conditions.
+2. Construct features using the same definitions used during model training.
+3. Combine weather features with available prior laboratory-history features.
+4. Validate that every required model feature exists and contains a usable numeric value.
+5. Run the saved E. coli and Enterococcus models.
+6. Convert predicted exceedance probabilities into public-facing risk categories.
+7. Display the results in Streamlit.
+
+If required inputs cannot be constructed, LagoonCast marks the current forecast as unavailable rather than silently replacing missing values with zeros.
+
+Historical saved model output may remain in the repository for reference, but an old saved prediction is **not presented as the current forecast** when live inference fails.
 ### Primary Live Forecast Path
 
 The current forecasting path is:
