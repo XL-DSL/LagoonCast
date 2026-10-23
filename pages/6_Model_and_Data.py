@@ -307,8 +307,8 @@ st.caption(
 # STATUS CARDS
 # ==========================================================
 
-c1, c2, c3, c4 = st.columns(
-    4
+c1, c2 = st.columns(
+    2
 )
 
 
@@ -327,30 +327,8 @@ with c1:
 with c2:
 
     st.metric(
-        "Latest Weather Input",
-        _date_text(
-            latest_weather
-        ),
-    )
-
-
-with c3:
-
-    st.metric(
-        "Latest Laboratory Input",
-        _date_text(
-            freshness.get(
-                "latest_lab_date"
-            )
-        ),
-    )
-
-
-with c4:
-
-    st.metric(
         "Forecast Generated",
-        _timestamp_text(
+        _date_text(
             generated_at
         ),
     )
