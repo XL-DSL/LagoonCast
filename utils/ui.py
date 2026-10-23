@@ -38,7 +38,7 @@ OFFICIAL_URL = (
 # itself is renamed.
 GITHUB_URL = (
     "https://github.com/"
-    "XL-DSL/Aquacast-Beachgaurd"
+    "XL-DSL/LagoonCast"
 )
 
 
