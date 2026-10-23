@@ -13,6 +13,25 @@ import pandas as pd
 import requests
 
 
+# ============================================================
+# LagoonCast live forecasting
+#
+# This file intentionally preserves the public functions used
+# by the existing pages:
+#   - load_live_latest()
+#   - load_live_outlook(days=7)
+#   - load_recent_estimates(days=7)
+#   - build_feature_snapshot(...)
+#
+# Priority-1 fixes are limited to:
+#   1) training-consistent weather timing
+#   2) explicit required-feature validation
+#   3) prior-only lab history for reconstructed dates
+#   4) separate input-freshness metadata
+#
+# It does NOT redesign pages or impose a 14-day history limit.
+# ============================================================
+
 ROOT = Path(__file__).resolve().parents[1]
 PACIFIC = ZoneInfo("America/Los_Angeles")
 
@@ -25,19 +44,29 @@ SITE_LON = -122.2910
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 DISPLAY_THRESHOLDS = {
-    "E. coli": {"safe_max": 0.10, "unsafe_min": 0.50},
-    "Enterococcus": {"safe_max": 0.40, "unsafe_min": 0.85},
+    "E. coli": {
+        "safe_max": 0.10,
+        "unsafe_min": 0.50,
+    },
+    "Enterococcus": {
+        "safe_max": 0.40,
+        "unsafe_min": 0.85,
+    },
 }
 
-RISK_ORDER = {"Safe": 0, "Caution": 1, "Unsafe": 2}
+RISK_ORDER = {
+    "Safe": 0,
+    "Caution": 1,
+    "Unsafe": 2,
+}
 
 
 class ForecastUnavailableError(RuntimeError):
-    """Raised when LagoonCast cannot construct a valid live forecast."""
+    """Raised when a valid forecast cannot be constructed."""
 
 
 class FeatureConstructionError(ForecastUnavailableError):
-    """Raised when one or more required model inputs cannot be constructed."""
+    """Raised when required model inputs cannot be constructed."""
 
 
 def _find_file(filename: str) -> Path:
@@ -47,9 +76,11 @@ def _find_file(filename: str) -> Path:
         ROOT / "models" / filename,
         ROOT / "artifacts" / filename,
     ]
+
     for path in candidates:
         if path.exists():
             return path
+
     raise FileNotFoundError(
         f"Required LagoonCast file not found: {filename}. "
         f"Checked: {[str(p) for p in candidates]}"
@@ -59,20 +90,28 @@ def _find_file(filename: str) -> Path:
 @lru_cache(maxsize=1)
 def load_model_manifest() -> dict[str, Any]:
     path = _find_file("model_manifest.json")
-    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest = json.loads(
+        path.read_text(
+            encoding="utf-8"
+        )
+    )
 
     if "models" not in manifest:
         raise ForecastUnavailableError(
-            "model_manifest.json does not contain a 'models' section."
+            "model_manifest.json has no 'models' section."
         )
 
-    for bacteria_name in ("E. coli", "Enterococcus"):
+    for bacteria_name in [
+        "E. coli",
+        "Enterococcus",
+    ]:
         if bacteria_name not in manifest["models"]:
             raise ForecastUnavailableError(
                 f"model_manifest.json is missing {bacteria_name}."
             )
 
-        cfg = manifest["models"][bacteria_name]
+        config = manifest["models"][bacteria_name]
+
         required = [
             "model",
             "features",
@@ -80,7 +119,13 @@ def load_model_manifest() -> dict[str, Any]:
             "locked_threshold",
             "bacteria_threshold_mpn_100ml",
         ]
-        missing = [k for k in required if k not in cfg]
+
+        missing = [
+            key
+            for key in required
+            if key not in config
+        ]
+
         if missing:
             raise ForecastUnavailableError(
                 f"{bacteria_name} manifest entry is missing: {missing}"
@@ -90,20 +135,45 @@ def load_model_manifest() -> dict[str, Any]:
 
 
 @lru_cache(maxsize=2)
-def _load_model(bacteria_name: str):
+def _load_model(
+    bacteria_name: str,
+):
     manifest = load_model_manifest()
-    cfg = manifest["models"][bacteria_name]
-    model_path = _find_file(cfg["model_file"])
-    return joblib.load(model_path)
+    config = manifest["models"][bacteria_name]
+
+    model_path = _find_file(
+        config["model_file"]
+    )
+
+    return joblib.load(
+        model_path
+    )
 
 
-def _normalize_indicator(value: Any) -> str:
-    s = str(value).strip().lower()
-    if s in {"e. coli", "e coli", "ecoli", "e_coli"}:
+def _normalize_indicator(
+    value: Any,
+) -> str:
+    text = str(
+        value
+    ).strip().lower()
+
+    if text in {
+        "e. coli",
+        "e coli",
+        "ecoli",
+        "e_coli",
+    }:
         return "E. coli"
-    if s in {"enterococcus", "enterococci"}:
+
+    if text in {
+        "enterococcus",
+        "enterococci",
+    }:
         return "Enterococcus"
-    return str(value).strip()
+
+    return str(
+        value
+    ).strip()
 
 
 def _history_candidates() -> list[Path]:
@@ -114,66 +184,127 @@ def _history_candidates() -> list[Path]:
         ROOT / "Aquacast15Years_Weekly.csv",
         ROOT / "data" / "Aquacast15Years_enhanced_no_tides.csv",
         ROOT / "Aquacast15Years_enhanced_no_tides.csv",
-        ROOT
-        / "data"
-        / "aquacast_combined_cleaned_fib_sorted_2004_2026_COMPLETE_WITH_2010_2019(1).csv",
-        ROOT
-        / "aquacast_combined_cleaned_fib_sorted_2004_2026_COMPLETE_WITH_2010_2019(1).csv",
-        ROOT
-        / "data"
-        / "aquacast_combined_cleaned_fib_sorted_2004_2026_COMPLETE_WITH_2010_2019.csv",
-        ROOT
-        / "aquacast_combined_cleaned_fib_sorted_2004_2026_COMPLETE_WITH_2010_2019.csv",
     ]
 
 
 @lru_cache(maxsize=1)
 def load_lab_history() -> pd.DataFrame:
-    path = next((p for p in _history_candidates() if p.exists()), None)
-    if path is None:
-        raise ForecastUnavailableError(
-            "No laboratory-history file is available. Add "
-            "data/lagooncast_lab_history.csv or the approved historical dataset."
-        )
-
-    df = pd.read_csv(path, low_memory=False)
-
-    if "sample_date" not in df.columns and "sampledate" in df.columns:
-        df["sample_date"] = df["sampledate"]
-    if "indicator_clean" not in df.columns and "analyte" in df.columns:
-        df["indicator_clean"] = df["analyte"]
-    if "indicator_clean" not in df.columns and "indicator" in df.columns:
-        df["indicator_clean"] = df["indicator"]
-    if "result_value" not in df.columns and "result" in df.columns:
-        df["result_value"] = df["result"]
-
-    required = ["sample_date", "indicator_clean", "result_value"]
-    missing = [c for c in required if c not in df.columns]
-    if missing:
-        raise ForecastUnavailableError(
-            f"Laboratory-history file is missing required columns: {missing}"
-        )
-
-    out = df[required].copy()
-    out["sample_date"] = pd.to_datetime(
-        out["sample_date"], errors="coerce"
-    ).dt.normalize()
-    out["indicator_clean"] = out["indicator_clean"].map(_normalize_indicator)
-    out["result_value"] = pd.to_numeric(out["result_value"], errors="coerce")
-
-    out = (
-        out[out["indicator_clean"].isin(["E. coli", "Enterococcus"])]
-        .dropna(subset=required)
-        .sort_values(["indicator_clean", "sample_date"])
-        .reset_index(drop=True)
+    path = next(
+        (
+            candidate
+            for candidate in _history_candidates()
+            if candidate.exists()
+        ),
+        None,
     )
 
-    if out.empty:
+    if path is None:
+        raise ForecastUnavailableError(
+            "No laboratory-history file is available."
+        )
+
+    frame = pd.read_csv(
+        path,
+        low_memory=False,
+    )
+
+    if (
+        "sample_date" not in frame.columns
+        and "sampledate" in frame.columns
+    ):
+        frame["sample_date"] = frame["sampledate"]
+
+    if (
+        "indicator_clean" not in frame.columns
+        and "analyte" in frame.columns
+    ):
+        frame["indicator_clean"] = frame["analyte"]
+
+    if (
+        "indicator_clean" not in frame.columns
+        and "indicator" in frame.columns
+    ):
+        frame["indicator_clean"] = frame["indicator"]
+
+    if (
+        "result_value" not in frame.columns
+        and "result" in frame.columns
+    ):
+        frame["result_value"] = frame["result"]
+
+    required = [
+        "sample_date",
+        "indicator_clean",
+        "result_value",
+    ]
+
+    missing = [
+        column
+        for column in required
+        if column not in frame.columns
+    ]
+
+    if missing:
+        raise ForecastUnavailableError(
+            "Laboratory-history file is missing "
+            f"required columns: {missing}"
+        )
+
+    history = frame[
+        required
+    ].copy()
+
+    history[
+        "sample_date"
+    ] = pd.to_datetime(
+        history["sample_date"],
+        errors="coerce",
+    ).dt.normalize()
+
+    history[
+        "indicator_clean"
+    ] = history[
+        "indicator_clean"
+    ].map(
+        _normalize_indicator
+    )
+
+    history[
+        "result_value"
+    ] = pd.to_numeric(
+        history["result_value"],
+        errors="coerce",
+    )
+
+    history = (
+        history[
+            history["indicator_clean"].isin(
+                [
+                    "E. coli",
+                    "Enterococcus",
+                ]
+            )
+        ]
+        .dropna(
+            subset=required
+        )
+        .sort_values(
+            [
+                "indicator_clean",
+                "sample_date",
+            ]
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    if history.empty:
         raise ForecastUnavailableError(
             "Laboratory-history file has no usable rows."
         )
 
-    return out
+    return history
 
 
 def _fetch_open_meteo_weather(
@@ -181,7 +312,10 @@ def _fetch_open_meteo_weather(
     past_days: int = 30,
     forecast_days: int = 8,
     timeout: int = 20,
-) -> tuple[pd.DataFrame, dict[str, Any]]:
+) -> tuple[
+    pd.DataFrame,
+    dict[str, Any],
+]:
     params = {
         "latitude": SITE_LAT,
         "longitude": SITE_LON,
@@ -193,8 +327,12 @@ def _fetch_open_meteo_weather(
             ]
         ),
         "timezone": "America/Los_Angeles",
-        "past_days": int(past_days),
-        "forecast_days": int(forecast_days),
+        "past_days": int(
+            past_days
+        ),
+        "forecast_days": int(
+            forecast_days
+        ),
         "temperature_unit": "celsius",
         "precipitation_unit": "mm",
     }
@@ -207,15 +345,19 @@ def _fetch_open_meteo_weather(
         )
         response.raise_for_status()
         payload = response.json()
+
     except Exception as exc:
         raise ForecastUnavailableError(
             f"Open-Meteo weather request failed: {exc}"
         ) from exc
 
-    daily = payload.get("daily")
+    daily = payload.get(
+        "daily"
+    )
+
     if not daily:
         raise ForecastUnavailableError(
-            "Open-Meteo response did not contain daily weather data."
+            "Open-Meteo returned no daily weather data."
         )
 
     required = [
@@ -226,14 +368,14 @@ def _fetch_open_meteo_weather(
     ]
 
     missing = [
-        c
-        for c in required
-        if c not in daily
+        field
+        for field in required
+        if field not in daily
     ]
 
     if missing:
         raise ForecastUnavailableError(
-            f"Open-Meteo response is missing fields: {missing}"
+            f"Open-Meteo is missing fields: {missing}"
         )
 
     weather = pd.DataFrame(
@@ -257,7 +399,9 @@ def _fetch_open_meteo_weather(
         }
     )
 
-    weather["tavg_c"] = (
+    weather[
+        "tavg_c"
+    ] = (
         weather["tmax_c"]
         + weather["tmin_c"]
     ) / 2.0
@@ -266,7 +410,7 @@ def _fetch_open_meteo_weather(
         weather
         .dropna(
             subset=[
-                "date"
+                "date",
             ]
         )
         .drop_duplicates(
@@ -286,7 +430,7 @@ def _fetch_open_meteo_weather(
 
     if weather.empty:
         raise ForecastUnavailableError(
-            "Open-Meteo returned no usable daily weather rows."
+            "Open-Meteo returned no usable weather rows."
         )
 
     retrieved_at = datetime.now(
@@ -298,12 +442,10 @@ def _fetch_open_meteo_weather(
             retrieved_at.isoformat(
                 timespec="seconds"
             ),
-
         "latest_weather_date":
             weather.index.max()
             .date()
             .isoformat(),
-
         "weather_source":
             "Open-Meteo",
     }
@@ -319,17 +461,23 @@ def _fetch_open_meteo_weather(
     )
 
 
+# Backward-compatible private alias used by some earlier code.
+_fetch_weather = _fetch_open_meteo_weather
+
+
 def _build_weather_features(
     weather_daily: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Reproduce Version 12 training timing exactly.
+    Match the Version 12 training definitions.
 
-    For target date t:
-    - rain_1day = precipitation on t-1
-    - rain_1day_lag1 = precipitation on t-2
-    - rain_1day_lag2 = precipitation on t-3
-    - every rolling weather feature is shifted by one day
+    For a target date t:
+      rain_1day      = rainfall on t-1
+      rain_1day_lag1 = rainfall on t-2
+      rain_1day_lag2 = rainfall on t-3
+
+    All rolling rainfall and temperature windows are shifted by
+    one day, so target-day conditions are excluded.
     """
 
     weather = weather_daily.copy()
@@ -340,11 +488,13 @@ def _build_weather_features(
     ):
         if "date" not in weather.columns:
             raise FeatureConstructionError(
-                "Weather input must have a DatetimeIndex "
+                "Weather data needs a DatetimeIndex "
                 "or a 'date' column."
             )
 
-        weather["date"] = pd.to_datetime(
+        weather[
+            "date"
+        ] = pd.to_datetime(
             weather["date"],
             errors="coerce",
         )
@@ -359,59 +509,60 @@ def _build_weather_features(
 
     weather = weather.sort_index()
 
-    for col in [
+    for column in [
         "prcp_mm",
         "tavg_c",
     ]:
-        if col not in weather.columns:
+        if column not in weather.columns:
             raise FeatureConstructionError(
-                f"Weather input is missing required column '{col}'."
+                f"Weather data is missing '{column}'."
             )
 
-        weather[col] = pd.to_numeric(
-            weather[col],
+        weather[
+            column
+        ] = pd.to_numeric(
+            weather[column],
             errors="coerce",
         )
 
-    pr = weather[
+    precipitation = weather[
         "prcp_mm"
     ]
 
-    temp = weather[
+    temperature = weather[
         "tavg_c"
     ]
 
     weather[
         "rain_1day"
-    ] = pr.shift(
+    ] = precipitation.shift(
         1
     )
 
     weather[
         "rain_1day_lag1"
-    ] = pr.shift(
+    ] = precipitation.shift(
         2
     )
 
     weather[
         "rain_1day_lag2"
-    ] = pr.shift(
+    ] = precipitation.shift(
         3
     )
 
-    for win in [
+    for window in [
         3,
         7,
         14,
     ]:
-
         weather[
-            f"rain_{win}day_sum"
+            f"rain_{window}day_sum"
         ] = (
-            pr
+            precipitation
             .rolling(
-                win,
-                min_periods=win,
+                window,
+                min_periods=window,
             )
             .sum()
             .shift(
@@ -420,12 +571,12 @@ def _build_weather_features(
         )
 
         weather[
-            f"rain_{win}day_avg"
+            f"rain_{window}day_avg"
         ] = (
-            pr
+            precipitation
             .rolling(
-                win,
-                min_periods=win,
+                window,
+                min_periods=window,
             )
             .mean()
             .shift(
@@ -434,12 +585,12 @@ def _build_weather_features(
         )
 
         weather[
-            f"rain_{win}day_max"
+            f"rain_{window}day_max"
         ] = (
-            pr
+            precipitation
             .rolling(
-                win,
-                min_periods=win,
+                window,
+                min_periods=window,
             )
             .max()
             .shift(
@@ -448,17 +599,18 @@ def _build_weather_features(
         )
 
         weather[
-            f"rain_{win}day_rainy_days"
+            f"rain_{window}day_rainy_days"
         ] = (
             (
-                pr > 0
+                precipitation
+                > 0
             )
             .astype(
                 float
             )
             .rolling(
-                win,
-                min_periods=win,
+                window,
+                min_periods=window,
             )
             .sum()
             .shift(
@@ -467,32 +619,32 @@ def _build_weather_features(
         )
 
         weather[
-            f"rain_intensity_{win}day"
+            f"rain_intensity_{window}day"
         ] = (
             weather[
-                f"rain_{win}day_sum"
+                f"rain_{window}day_sum"
             ]
             /
             (
                 weather[
-                    f"rain_{win}day_rainy_days"
+                    f"rain_{window}day_rainy_days"
                 ]
                 + 1e-6
             )
         )
 
-        min_periods = max(
+        minimum_periods = max(
             2,
-            win // 2,
+            window // 2,
         )
 
         weather[
-            f"temp_{win}day_avg"
+            f"temp_{window}day_avg"
         ] = (
-            temp
+            temperature
             .rolling(
-                win,
-                min_periods=min_periods,
+                window,
+                min_periods=minimum_periods,
             )
             .mean()
             .shift(
@@ -501,12 +653,12 @@ def _build_weather_features(
         )
 
         weather[
-            f"temp_{win}day_min"
+            f"temp_{window}day_min"
         ] = (
-            temp
+            temperature
             .rolling(
-                win,
-                min_periods=min_periods,
+                window,
+                min_periods=minimum_periods,
             )
             .min()
             .shift(
@@ -515,12 +667,12 @@ def _build_weather_features(
         )
 
         weather[
-            f"temp_{win}day_max"
+            f"temp_{window}day_max"
         ] = (
-            temp
+            temperature
             .rolling(
-                win,
-                min_periods=min_periods,
+                window,
+                min_periods=minimum_periods,
             )
             .max()
             .shift(
@@ -532,8 +684,7 @@ def _build_weather_features(
         "season_wet"
     ] = [
         1
-        if d.month
-        in [
+        if day.month in [
             11,
             12,
             1,
@@ -541,18 +692,16 @@ def _build_weather_features(
             3,
         ]
         else 0
-        for d
-        in weather.index
+        for day in weather.index
     ]
 
-    # Training semantics:
-    # adp_days on target date t is the dry-day count before t.
-    adp = []
+    # Training definition: number of consecutive dry days ending
+    # immediately BEFORE the target date.
+    antecedent_dry_days = []
     count = 0
 
-    for value in pr.to_numpy():
-
-        adp.append(
+    for value in precipitation.to_numpy():
+        antecedent_dry_days.append(
             count
         )
 
@@ -569,7 +718,7 @@ def _build_weather_features(
 
     weather[
         "adp_days"
-    ] = adp
+    ] = antecedent_dry_days
 
     weather[
         "rain_ratio_1to3"
@@ -667,19 +816,23 @@ def _build_lab_history_features(
     bacteria_name: str,
     target_date: pd.Timestamp,
     concentration_threshold: float,
-) -> tuple[dict[str, float], dict[str, Any]]:
+) -> tuple[
+    dict[str, float],
+    dict[str, Any],
+]:
     """
-    Use ONLY laboratory samples strictly before target_date.
+    Use only samples STRICTLY before the target date.
 
-    The strict '< target_date' rule prevents same-day laboratory leakage
-    in both live forecasts and reconstructed historical estimates.
+    This fixes same-day leakage in reconstructed estimates.
+    Lab age is reported as metadata, but is no longer used as an
+    E. coli predictor in the live-safe deployed model.
     """
 
     target_date = pd.Timestamp(
         target_date
     ).normalize()
 
-    sub = history_df[
+    subset = history_df[
         (
             history_df[
                 "indicator_clean"
@@ -695,20 +848,20 @@ def _build_lab_history_features(
         )
     ].copy()
 
-    sub = sub.sort_values(
+    subset = subset.sort_values(
         "sample_date"
     )
 
     if len(
-        sub
+        subset
     ) < 5:
-
         raise FeatureConstructionError(
-            f"{bacteria_name}: fewer than five prior laboratory "
-            f"samples are available before {target_date.date()}."
+            f"{bacteria_name}: fewer than five prior "
+            f"laboratory samples are available before "
+            f"{target_date.date()}."
         )
 
-    values = sub[
+    values = subset[
         "result_value"
     ].astype(
         float
@@ -729,12 +882,10 @@ def _build_lab_history_features(
         )
     )
 
-    latest = sub.iloc[
-        -1
-    ]
-
     latest_date = pd.Timestamp(
-        latest[
+        subset.iloc[
+            -1
+        ][
             "sample_date"
         ]
     ).normalize()
@@ -803,6 +954,7 @@ def _build_lab_history_features(
                 ].mean()
             ),
 
+        # Kept for metadata / diagnostics only.
         "days_since_prev_sample":
             float(
                 (
@@ -829,7 +981,7 @@ def _build_lab_history_features(
         "prior_lab_samples_available":
             int(
                 len(
-                    sub
+                    subset
                 )
             ),
     }
@@ -847,18 +999,15 @@ def _validate_feature_values(
     bacteria_name: str,
     target_date: pd.Timestamp,
 ) -> None:
-
     missing = [
-        f
-        for f
-        in required_features
-        if f not in values
+        feature
+        for feature in required_features
+        if feature not in values
     ]
 
     invalid = []
 
     for feature in required_features:
-
         if feature not in values:
             continue
 
@@ -886,16 +1035,15 @@ def _validate_feature_values(
             )
 
     if missing or invalid:
-
-        details = []
+        detail = []
 
         if missing:
-            details.append(
+            detail.append(
                 f"missing={missing}"
             )
 
         if invalid:
-            details.append(
+            detail.append(
                 f"invalid_or_nan={invalid}"
             )
 
@@ -903,10 +1051,8 @@ def _validate_feature_values(
             f"{bacteria_name} forecast unavailable for "
             f"{pd.Timestamp(target_date).date()}: "
             + "; ".join(
-                details
+                detail
             )
-            + ". Required model inputs are never silently "
-            "replaced with zero."
         )
 
 
@@ -917,7 +1063,6 @@ def build_feature_snapshot(
     weather_df: pd.DataFrame | None = None,
     history_df: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
-
     target_date = pd.Timestamp(
         target_date
     ).normalize()
@@ -931,58 +1076,54 @@ def build_feature_snapshot(
             f"Unknown model target: {bacteria_name}"
         )
 
-    cfg = manifest[
+    config = manifest[
         "models"
     ][
         bacteria_name
     ]
 
     required_features = list(
-        cfg[
+        config[
             "features"
         ]
     )
 
     concentration_threshold = float(
-        cfg[
+        config[
             "bacteria_threshold_mpn_100ml"
         ]
     )
 
     if weather_df is None:
-
-        weather_df, weather_meta = (
-            _fetch_open_meteo_weather()
-        )
+        (
+            weather_df,
+            weather_metadata,
+        ) = _fetch_open_meteo_weather()
 
     else:
-
-        latest_weather_date = None
-
-        if (
-            isinstance(
-                weather_df.index,
-                pd.DatetimeIndex,
-            )
-            and len(
-                weather_df
-            )
-        ):
-
-            latest_weather_date = (
-                weather_df
-                .index
-                .max()
-                .date()
-                .isoformat()
-            )
-
-        weather_meta = {
+        weather_metadata = {
             "weather_retrieved_at":
                 None,
 
             "latest_weather_date":
-                latest_weather_date,
+                (
+                    pd.DatetimeIndex(
+                        weather_df.index
+                    )
+                    .max()
+                    .date()
+                    .isoformat()
+                    if (
+                        isinstance(
+                            weather_df.index,
+                            pd.DatetimeIndex,
+                        )
+                        and len(
+                            weather_df
+                        ) > 0
+                    )
+                    else None
+                ),
 
             "weather_source":
                 "supplied_weather_frame",
@@ -1004,7 +1145,7 @@ def build_feature_snapshot(
         not in engineered_weather.index
     ):
         raise FeatureConstructionError(
-            f"No weather row is available for target date "
+            "No weather row is available for "
             f"{target_date.date()}."
         )
 
@@ -1018,7 +1159,7 @@ def build_feature_snapshot(
 
     (
         lab_values,
-        lab_meta,
+        lab_metadata,
     ) = _build_lab_history_features(
         history_df,
         bacteria_name=bacteria_name,
@@ -1076,8 +1217,8 @@ def build_feature_snapshot(
             .date()
             .isoformat(),
 
-        **weather_meta,
-        **lab_meta,
+        **weather_metadata,
+        **lab_metadata,
 
         "required_feature_count":
             len(
@@ -1091,11 +1232,10 @@ def build_feature_snapshot(
     return snapshot
 
 
-def _risk_level(
+def risk_level(
     bacteria_name: str,
     probability: float,
 ) -> str:
-
     thresholds = DISPLAY_THRESHOLDS[
         bacteria_name
     ]
@@ -1121,21 +1261,26 @@ def _risk_level(
     return "Unsafe"
 
 
-def _overall_risk(
-    ecoli_risk: str,
-    entero_risk: str,
+def overall_risk(
+    e_coli_risk: str,
+    enterococcus_risk: str,
 ) -> str:
-
     return max(
         [
-            ecoli_risk,
-            entero_risk,
+            e_coli_risk,
+            enterococcus_risk,
         ],
-        key=lambda x:
+        key=lambda label:
             RISK_ORDER[
-                x
+                label
             ],
     )
+
+
+# Private aliases kept for compatibility with code written against
+# the immediately previous implementation.
+_risk_level = risk_level
+_overall_risk = overall_risk
 
 
 def _predict_one(
@@ -1149,12 +1294,9 @@ def _predict_one(
     str,
     dict[str, Any],
 ]:
+    manifest = load_model_manifest()
 
-    manifest = (
-        load_model_manifest()
-    )
-
-    cfg = manifest[
+    config = manifest[
         "models"
     ][
         bacteria_name
@@ -1168,7 +1310,7 @@ def _predict_one(
     )
 
     required_features = list(
-        cfg[
+        config[
             "features"
         ]
     )
@@ -1177,9 +1319,9 @@ def _predict_one(
         [
             [
                 snapshot[
-                    f
+                    feature
                 ]
-                for f
+                for feature
                 in required_features
             ]
         ],
@@ -1189,14 +1331,6 @@ def _predict_one(
     model = _load_model(
         bacteria_name
     )
-
-    if not hasattr(
-        model,
-        "predict_proba",
-    ):
-        raise ForecastUnavailableError(
-            f"{bacteria_name} model does not support predict_proba()."
-        )
 
     probability = float(
         model.predict_proba(
@@ -1217,13 +1351,12 @@ def _predict_one(
         or probability > 1
     ):
         raise ForecastUnavailableError(
-            f"{bacteria_name} model returned invalid probability: "
-            f"{probability}"
+            f"{bacteria_name} returned an invalid probability."
         )
 
     return (
         probability,
-        _risk_level(
+        risk_level(
             bacteria_name,
             probability,
         ),
@@ -1233,24 +1366,64 @@ def _predict_one(
     )
 
 
+def _compatibility_fields(
+    row: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Add harmless aliases so older page code can consume the same row
+    without requiring a Timeline / Recent Trends rewrite.
+    """
+
+    row[
+        "date"
+    ] = row[
+        "prediction_date"
+    ]
+
+    row[
+        "e_coli_prob"
+    ] = row[
+        "e_coli_probability"
+    ]
+
+    row[
+        "enterococcus_prob"
+    ] = row[
+        "enterococcus_probability"
+    ]
+
+    row[
+        "risk"
+    ] = row[
+        "overall_risk"
+    ]
+
+    row[
+        "source"
+    ] = row[
+        "source_type"
+    ]
+
+    return row
+
+
 def _predict_date(
     target_date: Any,
     *,
     weather_df: pd.DataFrame,
-    weather_meta: dict[str, Any],
+    weather_metadata: dict[str, Any],
     history_df: pd.DataFrame,
     source_type: str,
     generated_at: datetime,
 ) -> dict[str, Any]:
-
     target = pd.Timestamp(
         target_date
     ).normalize()
 
     (
-        ecoli_prob,
-        ecoli_risk,
-        ecoli_meta,
+        e_coli_probability,
+        e_coli_risk,
+        e_coli_metadata,
     ) = _predict_one(
         "E. coli",
         target,
@@ -1259,9 +1432,9 @@ def _predict_date(
     )
 
     (
-        entero_prob,
-        entero_risk,
-        entero_meta,
+        enterococcus_probability,
+        enterococcus_risk,
+        enterococcus_metadata,
     ) = _predict_one(
         "Enterococcus",
         target,
@@ -1269,37 +1442,29 @@ def _predict_date(
         history_df=history_df,
     )
 
-    overall = _overall_risk(
-        ecoli_risk,
-        entero_risk,
+    combined_risk = overall_risk(
+        e_coli_risk,
+        enterococcus_risk,
     )
 
-    manifest = (
-        load_model_manifest()
-    )
+    manifest = load_model_manifest()
 
-    latest_lab_dates = [
-        pd.Timestamp(
-            ecoli_meta[
-                "latest_lab_date"
-            ]
-        ),
-        pd.Timestamp(
-            entero_meta[
-                "latest_lab_date"
-            ]
-        ),
-    ]
+    latest_lab_date = max(
+        [
+            pd.Timestamp(
+                e_coli_metadata[
+                    "latest_lab_date"
+                ]
+            ),
+            pd.Timestamp(
+                enterococcus_metadata[
+                    "latest_lab_date"
+                ]
+            ),
+        ]
+    ).date().isoformat()
 
-    latest_lab_date = (
-        max(
-            latest_lab_dates
-        )
-        .date()
-        .isoformat()
-    )
-
-    return {
+    row = {
         "site_id":
             SITE_ID,
 
@@ -1309,15 +1474,21 @@ def _predict_date(
         "county":
             COUNTY,
 
+        "latitude":
+            SITE_LAT,
+
+        "longitude":
+            SITE_LON,
+
         "prediction_date":
             target
             .date()
             .isoformat(),
 
         "data_last_updated":
-            generated_at.isoformat(
-                timespec="seconds"
-            ),
+            generated_at
+            .date()
+            .isoformat(),
 
         "forecast_generated_at":
             generated_at.isoformat(
@@ -1325,12 +1496,12 @@ def _predict_date(
             ),
 
         "weather_retrieved_at":
-            weather_meta.get(
+            weather_metadata.get(
                 "weather_retrieved_at"
             ),
 
         "latest_weather_date":
-            weather_meta.get(
+            weather_metadata.get(
                 "latest_weather_date"
             ),
 
@@ -1349,59 +1520,57 @@ def _predict_date(
             latest_lab_date,
 
         "e_coli_latest_lab_date":
-            ecoli_meta[
+            e_coli_metadata[
                 "latest_lab_date"
             ],
 
         "enterococcus_latest_lab_date":
-            entero_meta[
+            enterococcus_metadata[
                 "latest_lab_date"
             ],
 
         "e_coli_lab_age_days":
-            ecoli_meta[
+            e_coli_metadata[
                 "lab_age_days"
             ],
 
         "enterococcus_lab_age_days":
-            entero_meta[
+            enterococcus_metadata[
                 "lab_age_days"
             ],
 
         "e_coli_probability":
-            ecoli_prob,
+            e_coli_probability,
 
         "enterococcus_probability":
-            entero_prob,
+            enterococcus_probability,
 
         "e_coli_risk":
-            ecoli_risk,
+            e_coli_risk,
 
         "enterococcus_risk":
-            entero_risk,
+            enterococcus_risk,
 
         "overall_risk":
-            overall,
+            combined_risk,
 
         "risk_color":
             {
                 "Safe":
                     "green",
-
                 "Caution":
                     "yellow",
-
                 "Unsafe":
                     "red",
             }[
-                overall
+                combined_risk
             ],
 
         "safety_message":
             (
-                "Experimental LagoonCast forecast only. "
+                "Experimental forecast only. "
                 "Follow official water-quality advisories "
-                "and closures."
+                "and closure notices."
             ),
 
         "model_version":
@@ -1417,8 +1586,15 @@ def _predict_date(
             "PASS",
     }
 
+    return _compatibility_fields(
+        row
+    )
+
 
 def load_live_latest() -> dict[str, Any]:
+    """
+    Current LagoonCast forecast.
+    """
 
     today = pd.Timestamp(
         datetime.now(
@@ -1428,15 +1604,13 @@ def load_live_latest() -> dict[str, Any]:
 
     (
         weather,
-        weather_meta,
+        weather_metadata,
     ) = _fetch_open_meteo_weather(
         past_days=30,
         forecast_days=8,
     )
 
-    history = (
-        load_lab_history()
-    )
+    history = load_lab_history()
 
     generated_at = datetime.now(
         PACIFIC
@@ -1445,7 +1619,7 @@ def load_live_latest() -> dict[str, Any]:
     return _predict_date(
         today,
         weather_df=weather,
-        weather_meta=weather_meta,
+        weather_metadata=weather_metadata,
         history_df=history,
         source_type="live_forecast",
         generated_at=generated_at,
@@ -1455,17 +1629,20 @@ def load_live_latest() -> dict[str, Any]:
 def load_live_outlook(
     days: int = 7,
 ) -> pd.DataFrame:
+    """
+    Today plus `days` future dates.
+
+    The existing Timeline uses days=7, producing 8 rows here:
+    Today + next 7 days.
+    """
 
     days = int(
         days
     )
 
-    if (
-        days < 0
-        or days > 7
-    ):
+    if days < 0:
         raise ValueError(
-            "Live outlook supports 0 through 7 future days."
+            "days must be zero or greater."
         )
 
     today = pd.Timestamp(
@@ -1476,7 +1653,7 @@ def load_live_outlook(
 
     (
         weather,
-        weather_meta,
+        weather_metadata,
     ) = _fetch_open_meteo_weather(
         past_days=30,
         forecast_days=max(
@@ -1485,9 +1662,7 @@ def load_live_outlook(
         ),
     )
 
-    history = (
-        load_lab_history()
-    )
+    history = load_lab_history()
 
     generated_at = datetime.now(
         PACIFIC
@@ -1498,7 +1673,6 @@ def load_live_outlook(
     for horizon in range(
         days + 1
     ):
-
         target = (
             today
             +
@@ -1510,7 +1684,7 @@ def load_live_outlook(
         row = _predict_date(
             target,
             weather_df=weather,
-            weather_meta=weather_meta,
+            weather_metadata=weather_metadata,
             history_df=history,
             source_type=(
                 "live_forecast"
@@ -1530,10 +1704,26 @@ def load_live_outlook(
             "Today"
             if horizon == 0
             else (
-                f"{horizon} "
-                f"day{'s' if horizon != 1 else ''} ahead"
+                f"{horizon} day"
+                f"{'' if horizon == 1 else 's'} ahead"
             )
         )
+
+        row[
+            "is_today"
+        ] = (
+            horizon == 0
+        )
+
+        row[
+            "is_future"
+        ] = (
+            horizon > 0
+        )
+
+        row[
+            "is_reconstructed"
+        ] = False
 
         rows.append(
             row
@@ -1548,22 +1738,22 @@ def load_recent_estimates(
     days: int = 7,
 ) -> pd.DataFrame:
     """
-    Reconstruct previous dates using only information available
-    before each date.
+    Reconstructed estimates for the previous `days` dates.
 
-    These are reconstructed historical estimates, NOT saved forecasts.
+    There is deliberately NO arbitrary 14-day cap here.
+    A 30-day Recent Trends view is supported.
+
+    Each estimate uses laboratory observations strictly before
+    its target date.
     """
 
     days = int(
         days
     )
 
-    if (
-        days < 1
-        or days > 14
-    ):
+    if days < 1:
         raise ValueError(
-            "Recent reconstructed estimates support 1-14 days."
+            "days must be at least 1."
         )
 
     today = pd.Timestamp(
@@ -1574,7 +1764,7 @@ def load_recent_estimates(
 
     (
         weather,
-        weather_meta,
+        weather_metadata,
     ) = _fetch_open_meteo_weather(
         past_days=max(
             30,
@@ -1583,9 +1773,7 @@ def load_recent_estimates(
         forecast_days=8,
     )
 
-    history = (
-        load_lab_history()
-    )
+    history = load_lab_history()
 
     generated_at = datetime.now(
         PACIFIC
@@ -1598,7 +1786,6 @@ def load_recent_estimates(
         0,
         -1,
     ):
-
         target = (
             today
             -
@@ -1610,7 +1797,7 @@ def load_recent_estimates(
         row = _predict_date(
             target,
             weather_df=weather,
-            weather_meta=weather_meta,
+            weather_metadata=weather_metadata,
             history_df=history,
             source_type="reconstructed_historical_estimate",
             generated_at=generated_at,
@@ -1622,9 +1809,19 @@ def load_recent_estimates(
 
         row[
             "timeline_label"
-        ] = (
-            "Reconstructed historical estimate"
-        )
+        ] = "Recent Estimate"
+
+        row[
+            "is_today"
+        ] = False
+
+        row[
+            "is_future"
+        ] = False
+
+        row[
+            "is_reconstructed"
+        ] = True
 
         rows.append(
             row
@@ -1639,10 +1836,7 @@ def get_data_freshness(
     *,
     include_weather: bool = False,
 ) -> dict[str, Any]:
-
-    history = (
-        load_lab_history()
-    )
+    history = load_lab_history()
 
     result: dict[
         str,
@@ -1664,16 +1858,14 @@ def get_data_freshness(
             "enterococcus",
         ),
     ]:
-
-        sub = history[
+        subset = history[
             history[
                 "indicator_clean"
             ]
             == bacteria_name
         ]
 
-        if sub.empty:
-
+        if subset.empty:
             result[
                 f"{prefix}_latest_lab_date"
             ] = None
@@ -1682,7 +1874,7 @@ def get_data_freshness(
 
         latest = (
             pd.Timestamp(
-                sub[
+                subset[
                     "sample_date"
                 ].max()
             )
@@ -1713,19 +1905,17 @@ def get_data_freshness(
     )
 
     if include_weather:
-
         try:
-
             (
                 _,
-                weather_meta,
+                weather_metadata,
             ) = _fetch_open_meteo_weather(
                 past_days=16,
                 forecast_days=8,
             )
 
             result.update(
-                weather_meta
+                weather_metadata
             )
 
             result[
@@ -1733,7 +1923,6 @@ def get_data_freshness(
             ] = "available"
 
         except Exception as exc:
-
             result[
                 "weather_status"
             ] = "unavailable"
@@ -1751,10 +1940,7 @@ def get_model_metadata() -> tuple[
     dict[str, Any],
     pd.DataFrame,
 ]:
-
-    manifest = (
-        load_model_manifest()
-    )
+    manifest = load_model_manifest()
 
     metrics_path = _find_file(
         "current_best_model_metrics.csv"
