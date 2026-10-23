@@ -1,5 +1,4 @@
 import pandas as pd
-import pydeck as pdk
 import streamlit as st
 
 from utils.live_forecast import load_live_latest
@@ -12,67 +11,174 @@ from utils.ui import (
     probability_meter,
     render_footer,
     risk_class,
-    risk_driver_text,
     risk_icon,
-    successful_generation_text,
 )
 from utils.validation import (
-    load_valid_latest,
+    load_saved_backup_metadata,
     validate_prediction_row,
 )
 
 
+st.set_page_config(
+    page_title="LagoonCast | Water Quality Forecast",
+    page_icon="🌊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
 apply_styles()
-
-
-# ==========================================================
-# SITE
-# ==========================================================
 
 SITE_LAT = 37.5602
 SITE_LON = -122.2910
 
 
-# ==========================================================
-# LOAD CURRENT PREDICTION
-# ==========================================================
+def _format_date(value):
 
-live_prediction = True
-live_error = None
+    dt = pd.to_datetime(
+        value,
+        errors="coerce",
+    )
 
+    return (
+        dt.strftime(
+            "%b %d, %Y"
+        )
+        if pd.notna(
+            dt
+        )
+        else "Unavailable"
+    )
+
+
+def _format_timestamp(value):
+
+    dt = pd.to_datetime(
+        value,
+        errors="coerce",
+    )
+
+    return (
+        dt.strftime(
+            "%b %d, %Y at %I:%M %p"
+        )
+        if pd.notna(
+            dt
+        )
+        else "Unavailable"
+    )
+
+
+# ==========================================================
+# LOAD CURRENT LIVE FORECAST
+# ==========================================================
 
 try:
 
-    latest = load_live_latest()
-
+    latest = (
+        load_live_latest()
+    )
 
 except Exception as exc:
 
-    live_prediction = False
-    live_error = exc
+    backup = (
+        load_saved_backup_metadata()
+    )
 
-    try:
+    backup_text = ""
 
-        latest = load_valid_latest()
+    if backup is not None:
 
-    except Exception:
+        backup_text = (
+            "<p class='bg-section-subtitle'>"
+            "The latest saved model output is historical "
+            f"({_format_date(backup.get('prediction_date'))}) "
+            "and is not being displayed as a current forecast."
+            "</p>"
+        )
 
-        st.html(
-            f"""
+    st.html(
+        f"""
 <div class="bg-empty-state">
 
-    <div class="bg-empty-icon">
-        !
-    </div>
+    <div class="bg-empty-icon">!</div>
 
     <h2>
-        Forecast temporarily unavailable
+        Current forecast unavailable
     </h2>
 
     <p>
-        AquaCast cannot retrieve a valid forecast
-        right now. Please check the official
-        San Mateo County water-quality information.
+        LagoonCast could not construct a valid live forecast.
+        No historical prediction is being presented as current.
+        Please use the official San Mateo County water-quality
+        information before entering the water.
+    </p>
+
+    {backup_text}
+
+    <a
+        class="bg-primary-button"
+        href="{OFFICIAL_URL}"
+        target="_blank"
+    >
+        Check Official Water-Quality Advisories
+    </a>
+
+</div>
+"""
+    )
+
+    with st.expander(
+        "Technical details"
+    ):
+
+        st.code(
+            str(
+                exc
+            )
+        )
+
+    render_footer(
+        "Unavailable"
+    )
+
+    st.stop()
+
+
+# ==========================================================
+# VALIDATE LIVE OUTPUT BEFORE DISPLAY
+# ==========================================================
+
+validation = (
+    validate_prediction_row(
+        latest,
+        stale_after_days=0,
+    )
+)
+
+
+if (
+    not validation[
+        "valid"
+    ]
+    or validation[
+        "stale"
+    ]
+):
+
+    st.html(
+        f"""
+<div class="bg-empty-state">
+
+    <div class="bg-empty-icon">!</div>
+
+    <h2>
+        Current forecast unavailable
+    </h2>
+
+    <p>
+        LagoonCast generated an output that did not pass the
+        current-forecast checks, so it is not being shown as
+        a current Safe/Caution/Unsafe result.
     </p>
 
     <a
@@ -80,48 +186,40 @@ except Exception as exc:
         href="{OFFICIAL_URL}"
         target="_blank"
     >
-        View Official San Mateo County Beach Status
+        Check Official Water-Quality Advisories
     </a>
 
 </div>
 """
-        )
-
-        st.stop()
-
-
-# ==========================================================
-# VALIDATE PREDICTION
-# ==========================================================
-
-validation = validate_prediction_row(
-    latest
-)
-
-
-if not validation["valid"]:
-
-    st.error(
-        "Prediction currently unavailable. "
-        "The latest forecast did not pass "
-        "automated data checks."
     )
 
-    st.link_button(
-        "View Official San Mateo County Beach Status",
-        OFFICIAL_URL,
-        width="stretch",
+    with st.expander(
+        "Technical details"
+    ):
+
+        st.write(
+            validation[
+                "errors"
+            ]
+        )
+
+        st.write(
+            "Forecast age (days):",
+            validation[
+                "age_days"
+            ],
+        )
+
+    render_footer(
+        str(
+            latest.get(
+                "model_version",
+                "Unavailable",
+            )
+        )
     )
 
     st.stop()
-
-
-if validation["stale"]:
-
-    st.warning(
-        "This prediction is more than 7 days old "
-        "and may no longer represent current conditions."
-    )
 
 
 # ==========================================================
@@ -129,31 +227,35 @@ if validation["stale"]:
 # ==========================================================
 
 prediction_date = pd.to_datetime(
-    latest["prediction_date"],
+    latest[
+        "prediction_date"
+    ],
     errors="coerce",
 )
-
 
 updated_date = pd.to_datetime(
-    latest["data_last_updated"],
+    latest[
+        "data_last_updated"
+    ],
     errors="coerce",
 )
 
-
 model_ver = str(
-    latest["model_version"]
+    latest[
+        "model_version"
+    ]
 ).upper()
 
 
 overall_risk = str(
-    latest["overall_risk"]
+    latest[
+        "overall_risk"
+    ]
 ).strip()
-
 
 overall_class = risk_class(
     overall_risk
 )
-
 
 overall_icon = risk_icon(
     overall_risk
@@ -161,14 +263,16 @@ overall_icon = risk_icon(
 
 
 ecoli_risk = str(
-    latest["e_coli_risk"]
+    latest[
+        "e_coli_risk"
+    ]
 ).strip()
 
-
 ecoli_prob = float(
-    latest["e_coli_probability"]
+    latest[
+        "e_coli_probability"
+    ]
 )
-
 
 ecoli_class = risk_class(
     ecoli_risk
@@ -176,14 +280,16 @@ ecoli_class = risk_class(
 
 
 entero_risk = str(
-    latest["enterococcus_risk"]
+    latest[
+        "enterococcus_risk"
+    ]
 ).strip()
 
-
 entero_prob = float(
-    latest["enterococcus_probability"]
+    latest[
+        "enterococcus_probability"
+    ]
 )
-
 
 entero_class = risk_class(
     entero_risk
@@ -206,27 +312,44 @@ freshness = freshness_chip(
 )
 
 
-source_text = (
-    "Live weather-based AquaCast forecast"
-    if live_prediction
-    else "Latest validated saved AquaCast forecast"
+forecast_generated_text = (
+    _format_timestamp(
+        latest.get(
+            "forecast_generated_at"
+        )
+    )
 )
 
 
-driver_text = risk_driver_text(
-    ecoli_risk,
-    entero_risk,
+weather_input_text = (
+    _format_date(
+        latest.get(
+            "weather_input_end_date"
+        )
+    )
 )
 
 
-generated_text = successful_generation_text(
-    latest,
-    using_live=live_prediction,
+ecoli_lab_text = (
+    _format_date(
+        latest.get(
+            "e_coli_latest_lab_date"
+        )
+    )
+)
+
+
+entero_lab_text = (
+    _format_date(
+        latest.get(
+            "enterococcus_latest_lab_date"
+        )
+    )
 )
 
 
 # ==========================================================
-# HERO / CURRENT FORECAST
+# HERO
 # ==========================================================
 
 st.html(
@@ -239,7 +362,6 @@ st.html(
             {SITE_NAME}
         </div>
 
-
         <div class="bg-home-meta">
 
             <span>
@@ -250,13 +372,11 @@ st.html(
 
         </div>
 
-
         <div class="bg-home-status">
 
             <div class="bg-home-status-icon">
                 {overall_icon}
             </div>
-
 
             <div>
 
@@ -272,13 +392,12 @@ st.html(
 
         </div>
 
-
         <a
             class="bg-primary-button hero-button"
             href="{OFFICIAL_URL}"
             target="_blank"
         >
-            View Official San Mateo County Beach Status
+            Check Official Water-Quality Advisories
         </a>
 
     </section>
@@ -289,52 +408,50 @@ st.html(
 
 
 # ==========================================================
-# FORECAST CONTEXT
+# INPUT FRESHNESS
 # ==========================================================
 
 st.html(
     f"""
 <div class="bg-home-shell">
 
-    <div class="bg-forecast-context">
+    <div class="bg-inline-notice">
 
-        <div class="bg-risk-driver">
-            {driver_text}
-        </div>
+        <strong>
+            Forecast generated:
+        </strong>
 
-        <div class="bg-generated-time">
-            Last successfully generated:
-            <strong>
-                {generated_text}
-            </strong>
-        </div>
+        {forecast_generated_text}
+
+        &nbsp;·&nbsp;
+
+        <strong>
+            Weather input through:
+        </strong>
+
+        {weather_input_text}
+
+        <br>
+
+        <strong>
+            Latest actual E. coli lab sample used:
+        </strong>
+
+        {ecoli_lab_text}
+
+        &nbsp;·&nbsp;
+
+        <strong>
+            Latest actual Enterococcus lab sample used:
+        </strong>
+
+        {entero_lab_text}
 
     </div>
 
 </div>
 """
 )
-
-
-# ==========================================================
-# FALLBACK NOTICE
-# ==========================================================
-
-if not live_prediction:
-
-    st.html(
-        """
-<div class="bg-home-shell">
-
-    <div class="bg-inline-notice">
-        Live weather input is temporarily unavailable.
-        Showing the latest validated saved
-        AquaCast prediction.
-    </div>
-
-</div>
-"""
-    )
 
 
 # ==========================================================
@@ -347,7 +464,6 @@ ecoli_meter = probability_meter(
     0.50,
     ecoli_risk,
 )
-
 
 entero_meter = probability_meter(
     entero_prob,
@@ -374,15 +490,13 @@ st.html(
             </h2>
 
             <p class="bg-section-subtitle">
-                Predicted probability that bacterial
-                levels exceed the model's
-                elevated-risk concentration threshold.
+                Predicted probability that bacterial levels exceed
+                LagoonCast's model-defined concentration threshold.
             </p>
 
         </div>
 
     </div>
-
 
     <div class="bg-risk-grid">
 
@@ -393,7 +507,6 @@ st.html(
                 <div class="bg-organism-icon">
                     EC
                 </div>
-
 
                 <div>
 
@@ -410,25 +523,24 @@ st.html(
 
             </div>
 
-
             <div class="bg-risk-value">
                 {ecoli_prob:.0%}
             </div>
-
 
             <div class="bg-risk-value-label">
                 Predicted exceedance probability
             </div>
 
-
             {ecoli_meter}
 
-
             <div class="bg-risk-threshold">
-                Concentration threshold:
+
+                Model-defined exceedance threshold:
+
                 <strong>
                     235 MPN/100 mL
                 </strong>
+
             </div>
 
         </article>
@@ -441,7 +553,6 @@ st.html(
                 <div class="bg-organism-icon">
                     EN
                 </div>
-
 
                 <div>
 
@@ -458,25 +569,24 @@ st.html(
 
             </div>
 
-
             <div class="bg-risk-value">
                 {entero_prob:.0%}
             </div>
-
 
             <div class="bg-risk-value-label">
                 Predicted exceedance probability
             </div>
 
-
             {entero_meter}
 
-
             <div class="bg-risk-threshold">
-                Concentration threshold:
+
+                Model-defined exceedance threshold:
+
                 <strong>
                     130 MPN/100 mL
                 </strong>
+
             </div>
 
         </article>
@@ -489,7 +599,7 @@ st.html(
 
 
 # ==========================================================
-# PILOT SITE
+# PILOT SITE + MAP
 # ==========================================================
 
 st.html(
@@ -505,9 +615,14 @@ st.html(
             </h2>
 
             <p class="bg-section-subtitle">
+
                 {SITE_NAME}
+
                 &nbsp;·&nbsp;
-                Current forecast: {overall_risk}
+
+                Current LagoonCast forecast:
+                {overall_risk}
+
             </p>
 
         </div>
@@ -516,145 +631,6 @@ st.html(
 
 </div>
 """
-)
-
-
-# ==========================================================
-# MAP
-# Same interactive map style as standalone Map page.
-# ==========================================================
-
-RISK_COLORS = {
-    "Safe": [
-        46,
-        125,
-        50,
-        210,
-    ],
-
-    "Caution": [
-        178,
-        106,
-        0,
-        210,
-    ],
-
-    "Unsafe": [
-        198,
-        40,
-        40,
-        210,
-    ],
-}
-
-
-marker_color = RISK_COLORS.get(
-    overall_risk,
-    [
-        102,
-        112,
-        133,
-        210,
-    ],
-)
-
-
-map_data = pd.DataFrame(
-    [
-        {
-            "lat":
-                SITE_LAT,
-
-            "lon":
-                SITE_LON,
-
-            "site":
-                "Parkside Aquatic Park",
-
-            "overall":
-                overall_risk,
-
-            "ecoli":
-                f"{ecoli_prob:.1%}",
-
-            "entero":
-                f"{entero_prob:.1%}",
-
-            "date":
-                prediction_text,
-        }
-    ]
-)
-
-
-layer = pdk.Layer(
-    "ScatterplotLayer",
-
-    data=map_data,
-
-    get_position=[
-        "lon",
-        "lat",
-    ],
-
-    get_fill_color=marker_color,
-
-    get_line_color=[
-        255,
-        255,
-        255,
-        255,
-    ],
-
-    line_width_min_pixels=2,
-
-    stroked=True,
-
-    filled=True,
-
-    radius_min_pixels=8,
-
-    radius_max_pixels=12,
-
-    pickable=True,
-)
-
-
-view_state = pdk.ViewState(
-    latitude=SITE_LAT,
-
-    longitude=SITE_LON,
-
-    zoom=14.4,
-
-    pitch=0,
-)
-
-
-deck = pdk.Deck(
-    layers=[
-        layer
-    ],
-
-    initial_view_state=view_state,
-
-    tooltip={
-        "html":
-            "<b>{site}</b><br/>"
-            "Current AquaCast forecast: {overall}<br/>"
-            "E. coli: {ecoli}<br/>"
-            "Enterococcus: {entero}<br/>"
-            "Forecast date: {date}",
-
-        "style":
-            {
-                "backgroundColor":
-                    "#172033",
-
-                "color":
-                    "white",
-            },
-    },
 )
 
 
@@ -673,53 +649,57 @@ with map_center:
         border=True
     ):
 
-        st.pydeck_chart(
-            deck,
-            width="stretch",
-            height=430,
+        map_data = pd.DataFrame(
+            {
+                "lat":
+                    [
+                        SITE_LAT
+                    ],
+
+                "lon":
+                    [
+                        SITE_LON
+                    ],
+            }
+        )
+
+        st.map(
+            map_data,
+            zoom=14,
         )
 
 
-        button1, button2 = st.columns(
-            2
+        map_col1, map_col2 = st.columns(
+            [
+                3,
+                1,
+            ]
         )
 
 
-        with button1:
+        with map_col1:
 
-            st.link_button(
-                "Directions",
-                (
-                    "https://www.google.com/maps/dir/"
-                    "?api=1&destination="
-                    f"{SITE_LAT},{SITE_LON}"
-                ),
-                width="stretch",
+            st.caption(
+                f"📍 {SITE_NAME} · "
+                "Live LagoonCast model forecast"
             )
 
 
-        with button2:
+        with map_col2:
 
             st.link_button(
-                "Open in Google Maps",
+                "Open larger map",
                 (
                     "https://www.google.com/maps/search/"
                     "?api=1&query="
                     f"{SITE_LAT},{SITE_LON}"
                 ),
-                width="stretch",
+                use_container_width=True,
             )
 
 
-        st.caption(
-            f"📍 {SITE_NAME} · "
-            f"{source_text}. "
-            "Hover over the marker for forecast details."
-        )
-
-
 # ==========================================================
-# SAFETY NOTICE
+# SAFETY NOTE
 # ==========================================================
 
 st.html(
@@ -732,10 +712,14 @@ st.html(
             Important:
         </strong>
 
-        LagoonCast is an experimental decision-support
-        forecast. It does not directly measure bacteria
-        and does not replace official laboratory results,
-        advisories, or closures.
+        LagoonCast is an experimental decision-support forecast.
+        It does not directly measure bacteria and does not replace
+        official laboratory results, advisories, or closures.
+
+        The 235 and 130 MPN/100 mL values shown above are the
+        model-defined concentration thresholds used to create
+        LagoonCast's training labels. They are not presented here
+        as current official closure limits for Parkside Aquatic Park.
 
     </div>
 
@@ -743,10 +727,6 @@ st.html(
 """
 )
 
-
-# ==========================================================
-# FOOTER
-# ==========================================================
 
 render_footer(
     model_ver
