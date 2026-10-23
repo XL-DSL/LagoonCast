@@ -21,7 +21,7 @@ from utils.validation import (
 
 
 st.set_page_config(
-    page_title="BeachGuard | AquaCast Water Quality Forecast",
+    page_title="LagoonCast | Water Quality Forecast",
     page_icon="🌊",
     layout="wide",
     initial_sidebar_state="expanded",
