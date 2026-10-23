@@ -1,20 +1,24 @@
-import json
-import math
-import re
-import sys
-import urllib.parse
-import urllib.request
-from pathlib import Path
+from __future__ import annotations
 
-import joblib
+import json
+import sys
+from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
 import numpy as np
 import pandas as pd
-import sklearn
-import streamlit as st
+import requests
 
 
 # ==========================================================
-# SCIKIT-LEARN COMPATIBILITY
+# SCIKIT-LEARN / JOBLIB COMPATIBILITY
+# ==========================================================
+#
+# Some saved sklearn models reference the compiled _loss
+# module directly when unpickled. Keep this compatibility
+# alias before importing joblib.
 # ==========================================================
 
 try:
@@ -29,60 +33,54 @@ except Exception:
     pass
 
 
+import joblib
+
+
 # ==========================================================
-# PATHS / SITE INFORMATION
+# PROJECT CONFIGURATION
 # ==========================================================
 
-ROOT = Path(__file__).resolve().parent.parent
-
-DATA_PATH = (
-    ROOT
-    / "data"
-    / "Aquacast15Years_Weekly.csv"
-)
-
-MODEL_DIR = (
-    ROOT
-    / "models"
-)
-
-MANIFEST = (
-    MODEL_DIR
-    / "model_manifest.json"
-)
+ROOT_DIR = Path(
+    __file__
+).resolve().parents[1]
 
 
-SITE_ID = (
-    "parkside_aquatic_park_san_mateo"
-)
+SITE_ID = "aquatic_park_san_mateo"
 
 SITE_NAME = (
     "Parkside Aquatic Park, San Mateo"
 )
 
+COUNTY = "San Mateo"
+
 SITE_LAT = 37.5602
+
 SITE_LON = -122.2910
 
-TIMEZONE = (
+PACIFIC_TIMEZONE = (
     "America/Los_Angeles"
 )
 
-APP_MODEL_VERSION = (
-    "V2.1-LIVE"
-)
-
 
 # ==========================================================
-# BACTERIA THRESHOLDS
+# MODEL / APP THRESHOLDS
+# ==========================================================
+#
+# These concentration thresholds are model target
+# definitions.
+#
+# Public Safe / Caution / Unsafe probability bands are
+# separate from the binary model's locked evaluation
+# threshold.
 # ==========================================================
 
-BACTERIA_LIMITS = {
+BACTERIA_THRESHOLDS = {
     "E. coli": 235.0,
     "Enterococcus": 130.0,
 }
 
 
-DISPLAY_THRESHOLDS = {
+APP_THRESHOLDS = {
     "E. coli": {
         "caution": 0.10,
         "unsafe": 0.50,
@@ -95,593 +93,394 @@ DISPLAY_THRESHOLDS = {
 }
 
 
-DATE_CANDIDATES = [
-    "prediction_date",
-    "sample_date",
-    "date",
-    "Date",
-    "SampleDate",
-    "sample_datetime",
-]
+RISK_ORDER = {
+    "Safe": 0,
+    "Caution": 1,
+    "Unsafe": 2,
+}
 
 
-ECOLI_VALUE_CANDIDATES = [
-    "e_coli",
-    "E_coli",
-    "ecoli",
-    "E. coli",
-    "e_coli_result",
-    "ecoli_result",
-    "ecoli_value",
-    "e_coli_value",
-]
-
-
-ENTERO_VALUE_CANDIDATES = [
-    "enterococcus",
-    "Enterococcus",
-    "entero",
-    "enterococcus_result",
-    "entero_result",
-    "enterococcus_value",
-    "entero_value",
-]
+RISK_COLORS = {
+    "Safe": "green",
+    "Caution": "yellow",
+    "Unsafe": "red",
+}
 
 
 # ==========================================================
-# RISK HELPERS
+# FILE DISCOVERY
 # ==========================================================
 
-def risk_level(
-    bacteria,
-    probability,
-):
-    probability = float(
-        probability
-    )
-
-    thresholds = (
-        DISPLAY_THRESHOLDS[
-            bacteria
-        ]
-    )
-
-    if (
-        probability
-        < thresholds[
-            "caution"
-        ]
-    ):
-        return "Safe"
-
-    if (
-        probability
-        < thresholds[
-            "unsafe"
-        ]
-    ):
-        return "Caution"
-
-    return "Unsafe"
-
-
-def overall_risk(
-    e_coli_risk,
-    enterococcus_risk,
-):
-    rank = {
-        "Safe": 0,
-        "Caution": 1,
-        "Unsafe": 2,
-    }
-
-    return max(
-        [
-            e_coli_risk,
-            enterococcus_risk,
-        ],
-        key=lambda value:
-            rank[value],
-    )
-
-
-# ==========================================================
-# COLUMN HELPERS
-# ==========================================================
-
-def _normalized(text):
-    return re.sub(
-        r"[^a-z0-9]+",
-        "",
-        str(text).lower(),
-    )
-
-
-def _find_column(
-    columns,
+def _first_existing_path(
     candidates,
 ):
-    columns = list(
-        columns
-    )
-
     for candidate in candidates:
-        if candidate in columns:
-            return candidate
 
-    normalized_lookup = {
-        _normalized(column):
-            column
-        for column in columns
-    }
+        path = ROOT_DIR / candidate
 
-    for candidate in candidates:
-        key = _normalized(
-            candidate
-        )
+        if path.exists():
 
-        if key in normalized_lookup:
-            return (
-                normalized_lookup[
-                    key
-                ]
-            )
+            return path
 
     return None
 
 
-def _date_column(df):
-    column = _find_column(
-        df.columns,
-        DATE_CANDIDATES,
-    )
-
-    if column is None:
-        raise RuntimeError(
-            "Could not find a date "
-            "column in the AquaCast dataset."
-        )
-
-    return column
-
-
-def _bacteria_value_column(
-    df,
-    bacteria,
+def _require_path(
+    candidates,
+    description,
 ):
-    candidates = (
-        ECOLI_VALUE_CANDIDATES
-        if bacteria == "E. coli"
-        else ENTERO_VALUE_CANDIDATES
+    path = _first_existing_path(
+        candidates
     )
 
-    return _find_column(
-        df.columns,
-        candidates,
-    )
+    if path is None:
 
+        checked = "\n".join(
+            str(
+                ROOT_DIR / candidate
+            )
+            for candidate
+            in candidates
+        )
 
-# ==========================================================
-# LOAD DATASET
-# ==========================================================
-
-@st.cache_data(
-    show_spinner=False
-)
-def _load_dataset():
-    if not DATA_PATH.exists():
         raise FileNotFoundError(
-            f"Dataset not found: "
-            f"{DATA_PATH}"
+            f"Could not find {description}.\n"
+            f"Checked:\n{checked}"
         )
 
-    df = pd.read_csv(
-        DATA_PATH
-    )
-
-    date_col = _date_column(
-        df
-    )
-
-    df[
-        date_col
-    ] = pd.to_datetime(
-        df[
-            date_col
-        ],
-        errors="coerce",
-    )
-
-    df = (
-        df
-        .dropna(
-            subset=[
-                date_col
-            ]
-        )
-        .sort_values(
-            date_col
-        )
-        .reset_index(
-            drop=True
-        )
-    )
-
-    return df
+    return path
 
 
 # ==========================================================
 # MODEL MANIFEST
 # ==========================================================
 
-@st.cache_data(
-    show_spinner=False
+@lru_cache(
+    maxsize=1
 )
 def _load_manifest():
-    if not MANIFEST.exists():
-        return {}
+    path = _require_path(
+        [
+            "model_manifest.json",
+            "models/model_manifest.json",
+            "data/model_manifest.json",
+            "artifacts/model_manifest.json",
+        ],
+        "model_manifest.json",
+    )
 
-    try:
-        with MANIFEST.open(
-            "r",
-            encoding="utf-8",
-        ) as handle:
+    with open(
+        path,
+        "r",
+        encoding="utf-8",
+    ) as handle:
 
-            return json.load(
-                handle
+        manifest = json.load(
+            handle
+        )
+
+    if (
+        "models"
+        not in manifest
+    ):
+
+        # Support older manifest structure if encountered.
+        if (
+            "E. coli" in manifest
+            and "Enterococcus" in manifest
+        ):
+
+            manifest = {
+                "pipeline_version":
+                    "AquaCast_Model_Pipeline_Version_12",
+
+                "models":
+                    manifest,
+            }
+
+        else:
+
+            raise ValueError(
+                "model_manifest.json does not contain "
+                "a valid models section."
             )
 
-    except Exception:
-        return {}
+    return manifest
 
 
-def _manifest_bacteria_entry(
-    manifest,
-    bacteria,
+# ==========================================================
+# MODEL FILE LOCATION
+# ==========================================================
+
+def _model_path(
+    filename,
 ):
-    if not isinstance(
-        manifest,
-        dict,
-    ):
-        return {}
-
-    target_keys = {
-        _normalized(
-            bacteria
+    candidates = [
+        filename,
+        f"models/{filename}",
+        f"data/{filename}",
+        f"artifacts/{filename}",
+        (
+            "AquaCast_Model_Pipeline_"
+            f"Version_12_Outputs/{filename}"
         ),
-
-        _normalized(
-            "ecoli"
-            if bacteria
-            == "E. coli"
-            else "enterococcus"
-        ),
-    }
-
-    containers = [
-        manifest
     ]
 
-    for key in [
-        "models",
-        "artifacts",
-        "bacteria",
-        "model_artifacts",
-    ]:
-        value = manifest.get(
-            key
-        )
-
-        if isinstance(
-            value,
-            dict,
-        ):
-            containers.append(
-                value
-            )
-
-    for container in containers:
-        for key, value in (
-            container.items()
-        ):
-
-            if (
-                _normalized(key)
-                in target_keys
-            ):
-
-                if isinstance(
-                    value,
-                    dict,
-                ):
-                    return value
-
-                if isinstance(
-                    value,
-                    str,
-                ):
-                    return {
-                        "model_file":
-                            value
-                    }
-
-    return {}
+    return _require_path(
+        candidates,
+        filename,
+    )
 
 
-def _extract_feature_list(
-    entry
+# ==========================================================
+# MODEL LOADING
+# ==========================================================
+
+@lru_cache(
+    maxsize=4
+)
+def _load_model(
+    bacteria,
 ):
-    if not isinstance(
-        entry,
-        dict,
-    ):
-        return []
+    manifest = _load_manifest()
 
-    for key in [
-        "features",
-        "feature_names",
-        "model_features",
-        "selected_features",
-        "input_features",
-    ]:
-        value = entry.get(
-            key
+    model_info = (
+        manifest[
+            "models"
+        ].get(
+            bacteria
+        )
+    )
+
+    if model_info is None:
+
+        raise KeyError(
+            f"No model configuration found for {bacteria}."
         )
 
-        if isinstance(
-            value,
-            list,
-        ):
-            return [
-                str(item)
-                for item
-                in value
+    model_filename = (
+        model_info.get(
+            "model_file"
+        )
+    )
+
+    if not model_filename:
+
+        raise ValueError(
+            f"No model_file listed for {bacteria}."
+        )
+
+    path = _model_path(
+        model_filename
+    )
+
+    model = joblib.load(
+        path
+    )
+
+    return model
+
+
+# ==========================================================
+# FEATURE LISTS
+# ==========================================================
+
+@lru_cache(
+    maxsize=4
+)
+def _load_features(
+    bacteria,
+):
+    manifest = _load_manifest()
+
+    model_info = (
+        manifest[
+            "models"
+        ].get(
+            bacteria
+        )
+    )
+
+    if model_info is None:
+
+        raise KeyError(
+            f"No model configuration found for {bacteria}."
+        )
+
+    features = model_info.get(
+        "features"
+    )
+
+    if features:
+
+        return [
+            str(
+                feature
+            ).strip()
+            for feature
+            in features
+            if str(
+                feature
+            ).strip()
+        ]
+
+    feature_filename = (
+        model_info.get(
+            "feature_file"
+        )
+        or model_info.get(
+            "features_file"
+        )
+    )
+
+    if not feature_filename:
+
+        raise ValueError(
+            f"No feature list found for {bacteria}."
+        )
+
+    feature_path = _model_path(
+        feature_filename
+    )
+
+    with open(
+        feature_path,
+        "r",
+        encoding="utf-8",
+    ) as handle:
+
+        features = [
+            line.strip()
+            for line
+            in handle.readlines()
+            if line.strip()
+        ]
+
+    if not features:
+
+        raise ValueError(
+            f"Feature list for {bacteria} is empty."
+        )
+
+    return features
+
+
+# ==========================================================
+# HISTORICAL LAB DATA
+# ==========================================================
+
+@lru_cache(
+    maxsize=1
+)
+def _load_historical_dataset():
+    path = _require_path(
+        [
+            "data/Aquacast15Years_Weekly.csv",
+            "Aquacast15Years_Weekly.csv",
+            "data/Aquacast15Years.csv",
+            "Aquacast15Years.csv",
+        ],
+        "historical LagoonCast dataset",
+    )
+
+    data = pd.read_csv(
+        path,
+        low_memory=False,
+    )
+
+    return data
+
+
+# ==========================================================
+# COLUMN HELPERS
+# ==========================================================
+
+def _normalize_name(
+    value,
+):
+    return (
+        str(
+            value
+        )
+        .strip()
+        .lower()
+        .replace(
+            " ",
+            "",
+        )
+        .replace(
+            "_",
+            "",
+        )
+        .replace(
+            ".",
+            "",
+        )
+        .replace(
+            "-",
+            "",
+        )
+    )
+
+
+def _find_column(
+    frame,
+    candidates,
+):
+    lookup = {
+        _normalize_name(
+            column
+        ): column
+        for column
+        in frame.columns
+    }
+
+    for candidate in candidates:
+
+        normalized = (
+            _normalize_name(
+                candidate
+            )
+        )
+
+        if normalized in lookup:
+
+            return lookup[
+                normalized
             ]
-
-    return []
-
-
-def _extract_model_file(
-    entry
-):
-    if not isinstance(
-        entry,
-        dict,
-    ):
-        return None
-
-    for key in [
-        "model_file",
-        "model_path",
-        "artifact",
-        "filename",
-        "file",
-        "path",
-    ]:
-        value = entry.get(
-            key
-        )
-
-        if (
-            isinstance(
-                value,
-                str,
-            )
-            and value.strip()
-        ):
-            return value.strip()
 
     return None
 
 
-def _search_model_file(
-    bacteria
-):
-    if not MODEL_DIR.exists():
-        return None
-
-    target_tokens = (
-        [
-            "ecoli",
-            "e_coli",
-            "e-coli",
-        ]
-        if bacteria == "E. coli"
-        else [
-            "enterococcus",
-            "entero",
-        ]
-    )
-
-    candidates = []
-
-    for path in (
-        MODEL_DIR.rglob("*")
-    ):
-        if not path.is_file():
-            continue
-
-        if (
-            path.suffix.lower()
-            not in {
-                ".joblib",
-                ".pkl",
-                ".pickle",
-            }
-        ):
-            continue
-
-        name = (
-            path.name.lower()
-        )
-
-        if any(
-            token in name
-            for token
-            in target_tokens
-        ):
-            candidates.append(
-                path
-            )
-
-    if not candidates:
-        return None
-
-    candidates.sort(
-        key=lambda path: (
-            "model"
-            not in path.name.lower(),
-            len(
-                path.name
-            ),
-        )
-    )
-
-    return candidates[0]
-
-
-@st.cache_resource(
-    show_spinner=False
-)
-def _load_model_and_features(
-    bacteria
-):
-    manifest = (
-        _load_manifest()
-    )
-
-    entry = (
-        _manifest_bacteria_entry(
-            manifest,
-            bacteria,
-        )
-    )
-
-    model_file = (
-        _extract_model_file(
-            entry
-        )
-    )
-
-    model_path = None
-
-    if model_file:
-        candidate = Path(
-            model_file
-        )
-
-        if not candidate.is_absolute():
-            direct = (
-                ROOT
-                / candidate
-            )
-
-            inside_models = (
-                MODEL_DIR
-                / candidate
-            )
-
-            if direct.exists():
-                candidate = direct
-
-            elif (
-                inside_models.exists()
-            ):
-                candidate = (
-                    inside_models
-                )
-
-        if candidate.exists():
-            model_path = candidate
-
-    if model_path is None:
-        model_path = (
-            _search_model_file(
-                bacteria
-            )
-        )
-
-    if model_path is None:
-        raise FileNotFoundError(
-            "Could not locate the saved "
-            f"{bacteria} model."
-        )
-
-    model = joblib.load(
-        model_path
-    )
-
-    features = (
-        _extract_feature_list(
-            entry
-        )
-    )
-
-    if (
-        not features
-        and hasattr(
-            model,
-            "feature_names_in_",
-        )
-    ):
-        features = [
-            str(value)
-            for value
-            in model.feature_names_in_
-        ]
-
-    if not features:
-        raise RuntimeError(
-            "Could not determine the "
-            "feature order for the "
-            f"{bacteria} model."
-        )
-
-    return (
-        model,
-        features,
-    )
-
-
-def _model_version():
-    manifest = (
-        _load_manifest()
-    )
-
-    if isinstance(
-        manifest,
-        dict,
-    ):
-
-        for key in [
-            "model_version",
-            "version",
-            "app_version",
-        ]:
-            value = manifest.get(
-                key
-            )
-
-            if value not in [
-                None,
-                "",
-            ]:
-                return str(
-                    value
-                )
-
-    return APP_MODEL_VERSION
-
-
 # ==========================================================
-# OPEN-METEO WEATHER
+# OPEN-METEO LIVE WEATHER
 # ==========================================================
 
-@st.cache_data(
-    ttl=1800,
-    show_spinner=False,
-)
-def _fetch_weather():
+def _fetch_open_meteo_weather(
+    past_days=60,
+    forecast_days=8,
+):
+    """
+    Download daily weather around Parkside Aquatic Park.
+
+    We request enough historical weather to construct all
+    14-day Version 12 rolling features and enough forecast
+    weather for the seven-day outlook.
+
+    Values requested:
+      - daily precipitation
+      - daily max temperature
+      - daily min temperature
+
+    Daily mean temperature is reconstructed as:
+        (max + min) / 2
+    """
+
+    url = (
+        "https://api.open-meteo.com/"
+        "v1/forecast"
+    )
+
     params = {
         "latitude":
             SITE_LAT,
@@ -692,103 +491,120 @@ def _fetch_weather():
         "daily":
             (
                 "precipitation_sum,"
-                "temperature_2m_mean"
+                "temperature_2m_max,"
+                "temperature_2m_min"
             ),
 
         "timezone":
-            TIMEZONE,
+            PACIFIC_TIMEZONE,
 
-        # Gives enough history
-        # for Recent Trends.
         "past_days":
-            45,
+            int(
+                past_days
+            ),
 
-        # TODAY + NEXT 7 DAYS
         "forecast_days":
-            8,
+            int(
+                forecast_days
+            ),
     }
 
-    url = (
-        "https://api.open-meteo.com/"
-        "v1/forecast?"
-        + urllib.parse.urlencode(
-            params
-        )
+    response = requests.get(
+        url,
+        params=params,
+        timeout=30,
     )
 
-    request = (
-        urllib.request.Request(
-            url,
-            headers={
-                "User-Agent":
-                    "LagoonCast-AquaCast/2.1"
-            },
+    response.raise_for_status()
+
+    payload = response.json()
+
+    if (
+        "daily"
+        not in payload
+    ):
+
+        raise ValueError(
+            "Open-Meteo did not return daily weather data."
         )
-    )
 
-    with urllib.request.urlopen(
-        request,
-        timeout=15,
-    ) as response:
+    daily = payload[
+        "daily"
+    ]
 
-        payload = json.loads(
-            response
-            .read()
-            .decode(
-                "utf-8"
+    required = [
+        "time",
+        "precipitation_sum",
+        "temperature_2m_max",
+        "temperature_2m_min",
+    ]
+
+    missing = [
+        field
+        for field
+        in required
+        if field not in daily
+    ]
+
+    if missing:
+
+        raise ValueError(
+            "Open-Meteo response is missing: "
+            + ", ".join(
+                missing
             )
         )
 
-    daily = payload.get(
-        "daily",
-        {},
-    )
-
-    dates = daily.get(
-        "time",
-        [],
-    )
-
-    precipitation = daily.get(
-        "precipitation_sum",
-        [],
-    )
-
-    temperature = daily.get(
-        "temperature_2m_mean",
-        [],
-    )
-
-    if not dates:
-        raise RuntimeError(
-            "Open-Meteo returned no "
-            "daily weather data."
-        )
-
-    weather = pd.DataFrame(
+    frame = pd.DataFrame(
         {
             "date":
                 pd.to_datetime(
-                    dates,
+                    daily[
+                        "time"
+                    ],
                     errors="coerce",
                 ),
 
             "precipitation_sum":
                 pd.to_numeric(
-                    precipitation,
+                    daily[
+                        "precipitation_sum"
+                    ],
                     errors="coerce",
                 ),
 
-            "temperature_2m_mean":
+            "temperature_2m_max":
                 pd.to_numeric(
-                    temperature,
+                    daily[
+                        "temperature_2m_max"
+                    ],
+                    errors="coerce",
+                ),
+
+            "temperature_2m_min":
+                pd.to_numeric(
+                    daily[
+                        "temperature_2m_min"
+                    ],
                     errors="coerce",
                 ),
         }
     )
 
-    weather = (
-        weather
+    frame[
+        "temperature_2m_mean"
+    ] = (
+        frame[
+            "temperature_2m_max"
+        ]
+        +
+        frame[
+            "temperature_2m_min"
+        ]
+    ) / 2.0
+
+    frame = (
+        frame
         .dropna(
             subset=[
                 "date"
@@ -797,412 +613,888 @@ def _fetch_weather():
         .sort_values(
             "date"
         )
-        .set_index(
-            "date"
+        .reset_index(
+            drop=True
         )
     )
 
-    weather[
-        "precipitation_sum"
-    ] = (
-        weather[
-            "precipitation_sum"
-        ]
-        .fillna(
-            0.0
-        )
-        .clip(
-            lower=0.0
-        )
-    )
+    if frame.empty:
 
-    weather[
-        "temperature_2m_mean"
-    ] = (
-        weather[
-            "temperature_2m_mean"
-        ]
-        .interpolate(
-            limit_direction="both"
+        raise ValueError(
+            "Open-Meteo returned no usable weather rows."
         )
-    )
 
-    return weather
+    return frame
 
 
 # ==========================================================
-# WEATHER FEATURE ENGINEERING
+# TRAINING-ALIGNED WEATHER FEATURES
 # ==========================================================
 
-def _antecedent_dry_days(
-    rain_series
+def _prepare_training_aligned_weather(
+    weather,
 ):
-    values = []
-    dry_days = 0
+    """
+    Reproduce the Version 12 weather-feature definitions.
 
-    for rain in (
-        rain_series
-        .fillna(
-            0.0
+    For target date t:
+
+      rain_1day      = rainfall on t-1
+      rain_1day_lag1 = rainfall on t-2
+      rain_1day_lag2 = rainfall on t-3
+
+    Rolling rainfall and temperature windows are also
+    shifted one day so target-day weather is excluded.
+
+    This is deliberately different from calculating a
+    rolling window directly through target date t.
+    """
+
+    if weather is None:
+
+        raise ValueError(
+            "Weather data are unavailable."
         )
+
+    daily = weather.copy()
+
+    if isinstance(
+        daily.index,
+        pd.DatetimeIndex,
     ):
 
-        if float(rain) > 0.0:
-            values.append(
-                float(
-                    dry_days
-                )
+        daily = (
+            daily
+            .reset_index()
+        )
+
+    date_col = _find_column(
+        daily,
+        [
+            "date",
+            "prediction_date",
+            "sample_date",
+            "time",
+        ],
+    )
+
+    if date_col is None:
+
+        raise ValueError(
+            "Weather data do not contain a usable "
+            "date column."
+        )
+
+    daily[
+        "_weather_date"
+    ] = (
+        pd.to_datetime(
+            daily[
+                date_col
+            ],
+            errors="coerce",
+        )
+        .dt.normalize()
+    )
+
+    daily = (
+        daily
+        .dropna(
+            subset=[
+                "_weather_date"
+            ]
+        )
+        .sort_values(
+            "_weather_date"
+        )
+        .drop_duplicates(
+            "_weather_date",
+            keep="last",
+        )
+    )
+
+    rain_col = _find_column(
+        daily,
+        [
+            "precipitation_sum",
+            "precipitation",
+            "prcp_mm",
+            "rain_mm",
+            "rain",
+            "prcp",
+        ],
+    )
+
+    if rain_col is None:
+
+        raise ValueError(
+            "Weather data do not contain daily "
+            "precipitation."
+        )
+
+    temp_col = _find_column(
+        daily,
+        [
+            "temperature_2m_mean",
+            "temperature_mean",
+            "tavg_c",
+            "temp_c",
+            "temperature",
+            "tavg",
+        ],
+    )
+
+    if temp_col is not None:
+
+        daily[
+            "_temp_c"
+        ] = pd.to_numeric(
+            daily[
+                temp_col
+            ],
+            errors="coerce",
+        )
+
+    else:
+
+        tmax_col = _find_column(
+            daily,
+            [
+                "temperature_2m_max",
+                "tmax_c",
+                "tmax",
+            ],
+        )
+
+        tmin_col = _find_column(
+            daily,
+            [
+                "temperature_2m_min",
+                "tmin_c",
+                "tmin",
+            ],
+        )
+
+        if (
+            tmax_col is None
+            or tmin_col is None
+        ):
+
+            raise ValueError(
+                "Weather data do not contain enough "
+                "temperature information."
             )
 
-            dry_days = 0
+        daily[
+            "_temp_c"
+        ] = (
+            pd.to_numeric(
+                daily[
+                    tmax_col
+                ],
+                errors="coerce",
+            )
+            +
+            pd.to_numeric(
+                daily[
+                    tmin_col
+                ],
+                errors="coerce",
+            )
+        ) / 2.0
+
+    daily[
+        "_prcp_mm"
+    ] = pd.to_numeric(
+        daily[
+            rain_col
+        ],
+        errors="coerce",
+    )
+
+    daily = (
+        daily[
+            [
+                "_weather_date",
+                "_prcp_mm",
+                "_temp_c",
+            ]
+        ]
+        .set_index(
+            "_weather_date"
+        )
+        .sort_index()
+    )
+
+    if daily.empty:
+
+        raise ValueError(
+            "Weather data contain no usable daily records."
+        )
+
+    full_index = pd.date_range(
+        daily.index.min(),
+        daily.index.max(),
+        freq="D",
+    )
+
+    daily = daily.reindex(
+        full_index
+    )
+
+    daily.index.name = (
+        "prediction_date"
+    )
+
+    pr = daily[
+        "_prcp_mm"
+    ]
+
+    temp = daily[
+        "_temp_c"
+    ]
+
+    # ======================================================
+    # EXACT VERSION 12 RAINFALL TIMING
+    # ======================================================
+
+    daily[
+        "rain_1day"
+    ] = pr.shift(
+        1
+    )
+
+    daily[
+        "rain_1day_lag1"
+    ] = pr.shift(
+        2
+    )
+
+    daily[
+        "rain_1day_lag2"
+    ] = pr.shift(
+        3
+    )
+
+    # ======================================================
+    # EXACT VERSION 12 ROLLING WINDOWS
+    # ======================================================
+
+    for window in [
+        3,
+        7,
+        14,
+    ]:
+
+        daily[
+            f"rain_{window}day_sum"
+        ] = (
+            pr
+            .rolling(
+                window,
+                min_periods=window,
+            )
+            .sum()
+            .shift(
+                1
+            )
+        )
+
+        daily[
+            f"rain_{window}day_avg"
+        ] = (
+            pr
+            .rolling(
+                window,
+                min_periods=window,
+            )
+            .mean()
+            .shift(
+                1
+            )
+        )
+
+        daily[
+            f"rain_{window}day_max"
+        ] = (
+            pr
+            .rolling(
+                window,
+                min_periods=window,
+            )
+            .max()
+            .shift(
+                1
+            )
+        )
+
+        daily[
+            f"rain_{window}day_rainy_days"
+        ] = (
+            (
+                pr > 0
+            )
+            .astype(
+                float
+            )
+            .rolling(
+                window,
+                min_periods=window,
+            )
+            .sum()
+            .shift(
+                1
+            )
+        )
+
+        daily[
+            f"rain_intensity_{window}day"
+        ] = (
+            daily[
+                f"rain_{window}day_sum"
+            ]
+            /
+            (
+                daily[
+                    f"rain_{window}day_rainy_days"
+                ]
+                + 1e-6
+            )
+        )
+
+        minimum_periods = max(
+            2,
+            window // 2,
+        )
+
+        daily[
+            f"temp_{window}day_avg"
+        ] = (
+            temp
+            .rolling(
+                window,
+                min_periods=minimum_periods,
+            )
+            .mean()
+            .shift(
+                1
+            )
+        )
+
+        daily[
+            f"temp_{window}day_min"
+        ] = (
+            temp
+            .rolling(
+                window,
+                min_periods=minimum_periods,
+            )
+            .min()
+            .shift(
+                1
+            )
+        )
+
+        daily[
+            f"temp_{window}day_max"
+        ] = (
+            temp
+            .rolling(
+                window,
+                min_periods=minimum_periods,
+            )
+            .max()
+            .shift(
+                1
+            )
+        )
+
+    # ======================================================
+    # WET-SEASON INDICATOR
+    # ======================================================
+
+    daily[
+        "season_wet"
+    ] = [
+        1
+        if date_value.month
+        in [
+            11,
+            12,
+            1,
+            2,
+            3,
+        ]
+        else 0
+        for date_value
+        in daily.index
+    ]
+
+    # ======================================================
+    # ANTECEDENT DRY PERIOD
+    #
+    # This reproduces the Version 12 loop.
+    # ======================================================
+
+    adp_values = []
+
+    dry_count = 0
+
+    for precipitation in pr.values:
+
+        adp_values.append(
+            dry_count
+        )
+
+        if pd.isna(
+            precipitation
+        ):
+
+            dry_count = 0
+
+        elif precipitation > 0:
+
+            dry_count = 0
 
         else:
-            dry_days += 1
 
-            values.append(
-                float(
-                    dry_days
-                )
-            )
+            dry_count += 1
 
-    return pd.Series(
-        values,
-        index=rain_series.index,
-        dtype=float,
-    )
+    daily[
+        "adp_days"
+    ] = adp_values
 
+    # ======================================================
+    # DERIVED WEATHER FEATURES
+    # ======================================================
 
-def _engineer_weather_features(
-    weather
-):
-    df = weather.copy()
-
-    rain = (
-        df[
-            "precipitation_sum"
-        ]
-        .astype(
-            float
-        )
-    )
-
-    temp = (
-        df[
-            "temperature_2m_mean"
-        ]
-        .astype(
-            float
-        )
-    )
-
-    df[
-        "rain_1day"
-    ] = rain
-
-    df[
-        "rain_3day_sum"
-    ] = rain.rolling(
-        3,
-        min_periods=1,
-    ).sum()
-
-    df[
-        "rain_7day_sum"
-    ] = rain.rolling(
-        7,
-        min_periods=1,
-    ).sum()
-
-    df[
-        "rain_14day_sum"
-    ] = rain.rolling(
-        14,
-        min_periods=1,
-    ).sum()
-
-    df[
-        "rain_1day_lag1"
-    ] = (
-        rain.shift(
-            1
-        )
-        .fillna(
-            0.0
-        )
-    )
-
-    df[
-        "rain_1day_lag2"
-    ] = (
-        rain.shift(
-            2
-        )
-        .fillna(
-            0.0
-        )
-    )
-
-    df[
-        "rain_lag1"
-    ] = df[
-        "rain_1day_lag1"
-    ]
-
-    df[
-        "rain_lag2"
-    ] = df[
-        "rain_1day_lag2"
-    ]
-
-    df[
+    daily[
         "rain_ratio_1to3"
-    ] = np.where(
-        df[
-            "rain_3day_sum"
-        ] > 0,
-
-        df[
+    ] = (
+        daily[
             "rain_1day"
         ]
-        / df[
-            "rain_3day_sum"
-        ],
-
-        0.0,
-    )
-
-    df[
-        "rain_3day_max"
-    ] = rain.rolling(
-        3,
-        min_periods=1,
-    ).max()
-
-    df[
-        "rain_7day_max"
-    ] = rain.rolling(
-        7,
-        min_periods=1,
-    ).max()
-
-    df[
-        "rain_days_3day"
-    ] = (
-        rain.gt(
-            0
-        )
-        .astype(
-            int
-        )
-        .rolling(
-            3,
-            min_periods=1,
-        )
-        .sum()
-    )
-
-    df[
-        "rain_days_7day"
-    ] = (
-        rain.gt(
-            0
-        )
-        .astype(
-            int
-        )
-        .rolling(
-            7,
-            min_periods=1,
-        )
-        .sum()
-    )
-
-    df[
-        "adp_days"
-    ] = (
-        _antecedent_dry_days(
-            rain
+        /
+        (
+            daily[
+                "rain_3day_sum"
+            ]
+            + 1e-6
         )
     )
 
-    df[
+    daily[
         "first_flush_index"
     ] = (
-        df[
+        daily[
             "rain_1day"
         ]
-        * df[
+        *
+        daily[
             "adp_days"
         ]
     )
 
-    df[
-        "temp_1day"
-    ] = temp
-
-    df[
-        "temp_3day_avg"
-    ] = temp.rolling(
-        3,
-        min_periods=1,
-    ).mean()
-
-    df[
-        "temp_7day_avg"
-    ] = temp.rolling(
-        7,
-        min_periods=1,
-    ).mean()
-
-    df[
-        "temp_14day_avg"
-    ] = temp.rolling(
-        14,
-        min_periods=1,
-    ).mean()
-
-    df[
-        "month"
+    daily[
+        "wet_season_rain_1day"
     ] = (
-        df.index.month
-        .astype(
-            float
+        daily[
+            "season_wet"
+        ]
+        *
+        daily[
+            "rain_1day"
+        ]
+    )
+
+    daily[
+        "wet_season_rain_3day_sum"
+    ] = (
+        daily[
+            "season_wet"
+        ]
+        *
+        daily[
+            "rain_3day_sum"
+        ]
+    )
+
+    daily[
+        "wet_season_rain_7day_sum"
+    ] = (
+        daily[
+            "season_wet"
+        ]
+        *
+        daily[
+            "rain_7day_sum"
+        ]
+    )
+
+    daily[
+        "rain_temp_interaction_1day"
+    ] = (
+        daily[
+            "rain_1day"
+        ]
+        *
+        daily[
+            "temp_3day_avg"
+        ]
+    )
+
+    daily[
+        "rain_temp_interaction_3day"
+    ] = (
+        daily[
+            "rain_3day_sum"
+        ]
+        *
+        daily[
+            "temp_3day_avg"
+        ]
+    )
+
+    return daily
+
+
+# ==========================================================
+# LABORATORY HISTORY
+# ==========================================================
+
+def _prepare_lab_history(
+    dataset,
+    bacteria,
+    target_date,
+):
+    """
+    Return actual laboratory measurements available strictly
+    BEFORE target_date.
+
+    Same-day measurements are intentionally excluded so a
+    reconstructed estimate cannot use information that would
+    not have been available before that prediction date.
+    """
+
+    if dataset is None:
+
+        return pd.DataFrame()
+
+    data = dataset.copy()
+
+    date_col = _find_column(
+        data,
+        [
+            "sample_date",
+            "sampledate",
+            "prediction_date",
+            "date",
+        ],
+    )
+
+    bacteria_col = _find_column(
+        data,
+        [
+            "indicator_clean",
+            "analyte",
+            "bacteria",
+            "organism",
+        ],
+    )
+
+    result_col = _find_column(
+        data,
+        [
+            "result_value",
+            "result",
+            "value",
+        ],
+    )
+
+    if (
+        date_col is None
+        or bacteria_col is None
+        or result_col is None
+    ):
+
+        raise ValueError(
+            "Historical dataset does not contain the "
+            "required laboratory columns."
         )
-    )
 
-    df[
-        "day_of_year"
+    data[
+        "_sample_date"
     ] = (
-        df.index.dayofyear
-        .astype(
-            float
+        pd.to_datetime(
+            data[
+                date_col
+            ],
+            errors="coerce",
         )
+        .dt.normalize()
     )
 
-    df[
-        "dayofyear"
-    ] = df[
-        "day_of_year"
-    ]
-
-    df[
-        "month_sin"
-    ] = np.sin(
-        2
-        * np.pi
-        * df.index.month
-        / 12.0
+    data[
+        "_result"
+    ] = pd.to_numeric(
+        data[
+            result_col
+        ],
+        errors="coerce",
     )
 
-    df[
-        "month_cos"
-    ] = np.cos(
-        2
-        * np.pi
-        * df.index.month
-        / 12.0
+    normalized_bacteria = (
+        data[
+            bacteria_col
+        ]
+        .astype(
+            str
+        )
+        .str.strip()
+        .str.lower()
     )
 
-    df[
-        "dayofyear_sin"
-    ] = np.sin(
-        2
-        * np.pi
-        * df.index.dayofyear
-        / 365.25
-    )
+    if bacteria == "E. coli":
 
-    df[
-        "dayofyear_cos"
-    ] = np.cos(
-        2
-        * np.pi
-        * df.index.dayofyear
-        / 365.25
-    )
+        bacteria_mask = (
+            normalized_bacteria.isin(
+                [
+                    "e. coli",
+                    "e coli",
+                    "ecoli",
+                    "e_coli",
+                ]
+            )
+        )
 
-    df[
-        "wet_season"
-    ] = (
-        df.index.month
-        .isin(
-            [
-                11,
-                12,
-                1,
-                2,
-                3,
+    elif bacteria == "Enterococcus":
+
+        bacteria_mask = (
+            normalized_bacteria.isin(
+                [
+                    "enterococcus",
+                    "enterococci",
+                ]
+            )
+        )
+
+    else:
+
+        raise ValueError(
+            f"Unsupported bacteria: {bacteria}"
+        )
+
+    target = pd.Timestamp(
+        target_date
+    ).normalize()
+
+    history = data[
+        bacteria_mask
+        &
+        (
+            data[
+                "_sample_date"
+            ]
+            < target
+        )
+    ].copy()
+
+    history = (
+        history
+        .dropna(
+            subset=[
+                "_sample_date",
+                "_result",
             ]
         )
+        .sort_values(
+            [
+                "_sample_date",
+                "_result",
+            ]
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    return history
+
+
+# ==========================================================
+# LAB HISTORY FEATURES
+# ==========================================================
+
+def _history_feature_values(
+    dataset,
+    bacteria,
+    target_date,
+):
+    history = _prepare_lab_history(
+        dataset,
+        bacteria,
+        target_date,
+    )
+
+    threshold = BACTERIA_THRESHOLDS[
+        bacteria
+    ]
+
+    result = {
+        "prev_result_value":
+            np.nan,
+
+        "prev_exceedance":
+            np.nan,
+
+        "prev_result_to_threshold_ratio":
+            np.nan,
+
+        "prev3_result_mean":
+            np.nan,
+
+        "prev5_result_mean":
+            np.nan,
+
+        "prev3_exceedance_rate":
+            np.nan,
+
+        "prev5_exceedance_rate":
+            np.nan,
+
+        "prev3_result_to_threshold_ratio_mean":
+            np.nan,
+
+        "prev5_result_to_threshold_ratio_mean":
+            np.nan,
+
+        "days_since_prev_sample":
+            np.nan,
+    }
+
+    if history.empty:
+
+        return result
+
+    values = (
+        history[
+            "_result"
+        ]
+        .astype(
+            float
+        )
+    )
+
+    exceedance = (
+        values
+        >= threshold
     ).astype(
         float
     )
 
-    df[
-        "rain_temp_interaction"
-    ] = (
-        df[
-            "rain_1day"
-        ]
-        * df[
-            "temp_3day_avg"
+    ratios = (
+        values
+        / threshold
+    )
+
+    result[
+        "prev_result_value"
+    ] = float(
+        values.iloc[
+            -1
         ]
     )
 
-    df[
-        "rain3_temp_interaction"
-    ] = (
-        df[
-            "rain_3day_sum"
-        ]
-        * df[
-            "temp_3day_avg"
+    result[
+        "prev_exceedance"
+    ] = float(
+        exceedance.iloc[
+            -1
         ]
     )
 
-    return df
-
-
-# ==========================================================
-# HISTORICAL FEATURE HELPERS
-# ==========================================================
-
-def _latest_dataset_row(
-    dataset,
-    target_date,
-):
-    date_col = (
-        _date_column(
-            dataset
-        )
-    )
-
-    target_date = (
-        pd.Timestamp(
-            target_date
-        )
-        .normalize()
-    )
-
-    prior = dataset[
-        dataset[
-            date_col
+    result[
+        "prev_result_to_threshold_ratio"
+    ] = float(
+        ratios.iloc[
+            -1
         ]
-        .dt.normalize()
-        <= target_date
+    )
+
+    latest_date = history[
+        "_sample_date"
+    ].iloc[
+        -1
     ]
 
-    if prior.empty:
-        prior = dataset
+    result[
+        "days_since_prev_sample"
+    ] = float(
+        (
+            pd.Timestamp(
+                target_date
+            ).normalize()
+            - latest_date
+        ).days
+    )
 
-    if prior.empty:
-        return pd.Series(
-            dtype=float
+    if len(
+        history
+    ) >= 3:
+
+        result[
+            "prev3_result_mean"
+        ] = float(
+            values.tail(
+                3
+            ).mean()
         )
 
-    return (
-        prior.iloc[-1]
-    )
+        result[
+            "prev3_exceedance_rate"
+        ] = float(
+            exceedance.tail(
+                3
+            ).mean()
+        )
+
+        result[
+            "prev3_result_to_threshold_ratio_mean"
+        ] = float(
+            ratios.tail(
+                3
+            ).mean()
+        )
+
+    if len(
+        history
+    ) >= 5:
+
+        result[
+            "prev5_result_mean"
+        ] = float(
+            values.tail(
+                5
+            ).mean()
+        )
+
+        result[
+            "prev5_exceedance_rate"
+        ] = float(
+            exceedance.tail(
+                5
+            ).mean()
+        )
+
+        result[
+            "prev5_result_to_threshold_ratio_mean"
+        ] = float(
+            ratios.tail(
+                5
+            ).mean()
+        )
+
+    return result
 
 
 def _latest_lab_value(
@@ -1210,361 +1502,178 @@ def _latest_lab_value(
     bacteria,
     target_date,
 ):
-    date_col = (
-        _date_column(
-            dataset
-        )
+    history = _prepare_lab_history(
+        dataset,
+        bacteria,
+        target_date,
     )
 
-    value_col = (
-        _bacteria_value_column(
-            dataset,
-            bacteria,
-        )
-    )
+    if history.empty:
 
-    if value_col is None:
-        return np.nan
-
-    subset = (
-        dataset[
-            dataset[
-                date_col
-            ]
-            .dt.normalize()
-            <= pd.Timestamp(
-                target_date
-            ).normalize()
-        ][
-            [
-                date_col,
-                value_col,
-            ]
-        ]
-        .copy()
-    )
-
-    subset[
-        value_col
-    ] = pd.to_numeric(
-        subset[
-            value_col
-        ],
-        errors="coerce",
-    )
-
-    subset = subset.dropna(
-        subset=[
-            value_col
-        ]
-    )
-
-    if subset.empty:
         return np.nan
 
     return float(
-        subset.iloc[-1][
-            value_col
+        history[
+            "_result"
+        ].iloc[
+            -1
         ]
     )
 
 
-def _history_feature_values(
+def _latest_lab_date(
     dataset,
+    bacteria,
     target_date,
 ):
-    ecoli = (
-        _latest_lab_value(
-            dataset,
-            "E. coli",
-            target_date,
-        )
+    history = _prepare_lab_history(
+        dataset,
+        bacteria,
+        target_date,
     )
 
-    entero = (
-        _latest_lab_value(
-            dataset,
-            "Enterococcus",
-            target_date,
-        )
-    )
+    if history.empty:
 
-    ecoli_exceed = (
-        float(
-            ecoli
-            >= BACTERIA_LIMITS[
-                "E. coli"
-            ]
-        )
-        if pd.notna(
-            ecoli
-        )
-        else 0.0
-    )
+        return pd.NaT
 
-    entero_exceed = (
-        float(
-            entero
-            >= BACTERIA_LIMITS[
-                "Enterococcus"
-            ]
-        )
-        if pd.notna(
-            entero
-        )
-        else 0.0
-    )
-
-    return {
-        "previous_e_coli":
-            ecoli,
-
-        "previous_ecoli":
-            ecoli,
-
-        "prev_e_coli":
-            ecoli,
-
-        "prev_ecoli":
-            ecoli,
-
-        "lag_e_coli":
-            ecoli,
-
-        "lag_ecoli":
-            ecoli,
-
-        "e_coli_previous":
-            ecoli,
-
-        "ecoli_previous":
-            ecoli,
-
-        "previous_enterococcus":
-            entero,
-
-        "previous_entero":
-            entero,
-
-        "prev_enterococcus":
-            entero,
-
-        "prev_entero":
-            entero,
-
-        "lag_enterococcus":
-            entero,
-
-        "lag_entero":
-            entero,
-
-        "enterococcus_previous":
-            entero,
-
-        "entero_previous":
-            entero,
-
-        "previous_e_coli_exceedance":
-            ecoli_exceed,
-
-        "previous_ecoli_exceedance":
-            ecoli_exceed,
-
-        "prev_e_coli_exceedance":
-            ecoli_exceed,
-
-        "prev_ecoli_exceedance":
-            ecoli_exceed,
-
-        "previous_enterococcus_exceedance":
-            entero_exceed,
-
-        "previous_entero_exceedance":
-            entero_exceed,
-
-        "prev_enterococcus_exceedance":
-            entero_exceed,
-
-        "prev_entero_exceedance":
-            entero_exceed,
-    }
+    return history[
+        "_sample_date"
+    ].iloc[
+        -1
+    ]
 
 
-def _safe_numeric(
-    value,
-    default=0.0,
-):
-    numeric = pd.to_numeric(
-        pd.Series(
-            [
-                value
-            ]
-        ),
-        errors="coerce",
-    ).iloc[0]
-
-    if pd.isna(
-        numeric
-    ):
-        return float(
-            default
-        )
-
-    return float(
-        numeric
-    )
-
+# ==========================================================
+# BUILD MODEL INPUT ROW
+# ==========================================================
 
 def _build_feature_row(
     features,
     target_date,
     weather,
     dataset,
+    bacteria,
 ):
-    target_date = (
-        pd.Timestamp(
-            target_date
+    """
+    Construct one model input row.
+
+    Critical Version 12 rule:
+    all weather inputs stop at t-1.
+    """
+
+    target = pd.Timestamp(
+        target_date
+    ).normalize()
+
+    training_weather = (
+        _prepare_training_aligned_weather(
+            weather
         )
-        .normalize()
     )
 
-    if (
-        target_date
-        not in weather.index
-    ):
-        raise RuntimeError(
-            "Weather data are unavailable "
-            f"for {target_date.date()}."
+    if target not in training_weather.index:
+
+        raise ValueError(
+            "Weather data do not cover prediction date "
+            f"{target.date()}."
         )
 
     weather_row = (
-        weather.loc[
-            target_date
+        training_weather.loc[
+            target
         ]
     )
 
-    if isinstance(
-        weather_row,
-        pd.DataFrame,
-    ):
-        weather_row = (
-            weather_row.iloc[-1]
-        )
-
-    dataset_row = (
-        _latest_dataset_row(
-            dataset,
-            target_date,
-        )
-    )
-
-    history = (
+    history_values = (
         _history_feature_values(
             dataset,
-            target_date,
+            bacteria,
+            target,
         )
     )
 
-    weather_lookup = {
-        _normalized(key):
-            value
-        for key, value
-        in weather_row.items()
-    }
+    values = {}
 
-    dataset_lookup = {
-        _normalized(key):
-            value
-        for key, value
-        in dataset_row.items()
-    }
-
-    history_lookup = {
-        _normalized(key):
-            value
-        for key, value
-        in history.items()
-    }
-
-    row = {}
+    missing_features = []
 
     for feature in features:
-        key = _normalized(
-            feature
-        )
 
-        if key in weather_lookup:
-            value = (
-                weather_lookup[
-                    key
+        if feature in weather_row.index:
+
+            value = weather_row[
+                feature
+            ]
+
+        elif feature in history_values:
+
+            value = history_values[
+                feature
+            ]
+
+        else:
+
+            value = np.nan
+
+        numeric_value = pd.to_numeric(
+            pd.Series(
+                [
+                    value
                 ]
-            )
+            ),
+            errors="coerce",
+        ).iloc[
+            0
+        ]
 
-        elif key in history_lookup:
-            value = (
-                history_lookup[
-                    key
-                ]
+        if (
+            pd.isna(
+                numeric_value
             )
-
-        elif key in dataset_lookup:
-            value = (
-                dataset_lookup[
-                    key
-                ]
+            or not np.isfinite(
+                float(
+                    numeric_value
+                )
             )
+        ):
 
-        elif key in {
-            "month",
-            "monthnum",
-        }:
-            value = (
-                target_date.month
-            )
-
-        elif key in {
-            "dayofyear",
-            "doy",
-        }:
-            value = (
-                target_date.dayofyear
-            )
-
-        elif key == "year":
-            value = (
-                target_date.year
-            )
-
-        elif key in {
-            "weekofyear",
-            "week",
-        }:
-            value = (
-                target_date
-                .isocalendar()
-                .week
+            missing_features.append(
+                feature
             )
 
         else:
-            value = 0.0
 
-        row[
-            feature
-        ] = _safe_numeric(
-            value,
-            default=0.0,
+            values[
+                feature
+            ] = float(
+                numeric_value
+            )
+
+    # ======================================================
+    # DO NOT SILENTLY SUBSTITUTE ZERO
+    # ======================================================
+
+    if missing_features:
+
+        raise ValueError(
+            "Cannot generate a training-consistent "
+            f"{bacteria} forecast for "
+            f"{target.date()}. Missing or invalid "
+            "required features: "
+            + ", ".join(
+                missing_features
+            )
         )
 
     return pd.DataFrame(
         [
-            row
+            values
         ],
         columns=features,
     )
 
 
 # ==========================================================
-# MODEL PREDICTION
+# MODEL PROBABILITY
 # ==========================================================
 
 def _positive_probability(
@@ -1575,36 +1684,19 @@ def _positive_probability(
         model,
         "predict_proba",
     ):
-        probabilities = np.asarray(
+
+        probabilities = (
             model.predict_proba(
                 X
             )
         )
 
-        if (
-            probabilities.ndim
-            == 1
-        ):
-            return float(
-                probabilities[
-                    0
-                ]
-            )
+        if probabilities.ndim != 2:
 
-        if (
-            probabilities.shape[
-                1
-            ]
-            == 1
-        ):
-            return float(
-                probabilities[
-                    0,
-                    0,
-                ]
+            raise ValueError(
+                "Model predict_proba returned "
+                "an unexpected shape."
             )
-
-        positive_index = 1
 
         classes = getattr(
             model,
@@ -1613,32 +1705,44 @@ def _positive_probability(
         )
 
         if classes is not None:
+
             classes = list(
                 classes
             )
 
-            for candidate in [
-                1,
-                True,
-                "1",
-                "Unsafe",
-                "Exceedance",
-                "exceedance",
-            ]:
+            if 1 in classes:
 
-                if candidate in classes:
-                    positive_index = (
-                        classes.index(
-                            candidate
-                        )
+                positive_index = (
+                    classes.index(
+                        1
                     )
+                )
 
-                    break
+                return float(
+                    probabilities[
+                        0,
+                        positive_index,
+                    ]
+                )
+
+        if (
+            probabilities.shape[
+                1
+            ]
+            >= 2
+        ):
+
+            return float(
+                probabilities[
+                    0,
+                    1,
+                ]
+            )
 
         return float(
             probabilities[
                 0,
-                positive_index,
+                0,
             ]
         )
 
@@ -1646,7 +1750,8 @@ def _positive_probability(
         model,
         "decision_function",
     ):
-        score = np.asarray(
+
+        decision = np.asarray(
             model.decision_function(
                 X
             )
@@ -1656,12 +1761,11 @@ def _positive_probability(
 
         return float(
             1.0
-            / (
+            /
+            (
                 1.0
-                + math.exp(
-                    -float(
-                        score
-                    )
+                + np.exp(
+                    -decision
                 )
             )
         )
@@ -1675,15 +1779,13 @@ def _positive_probability(
     )[0]
 
     return float(
-        np.clip(
-            float(
-                prediction
-            ),
-            0.0,
-            1.0,
-        )
+        prediction
     )
 
+
+# ==========================================================
+# PREDICT ONE BACTERIUM
+# ==========================================================
 
 def _predict_bacteria(
     bacteria,
@@ -1693,13 +1795,12 @@ def _predict_bacteria(
     weather,
     dataset,
 ):
-    X = (
-        _build_feature_row(
-            features,
-            target_date,
-            weather,
-            dataset,
-        )
+    X = _build_feature_row(
+        features=features,
+        target_date=target_date,
+        weather=weather,
+        dataset=dataset,
+        bacteria=bacteria,
     )
 
     probability = (
@@ -1717,206 +1818,446 @@ def _predict_bacteria(
         )
     )
 
-    latest_lab = (
-        _latest_lab_value(
+    latest_lab = _latest_lab_value(
+        dataset,
+        bacteria,
+        target_date,
+    )
+
+    latest_lab_date = (
+        _latest_lab_date(
             dataset,
             bacteria,
             target_date,
         )
     )
 
-    estimated_history = True
-
     return (
         probability,
-        estimated_history,
         latest_lab,
+        latest_lab_date,
     )
+
+
+# ==========================================================
+# APP RISK CLASSIFICATION
+# ==========================================================
+
+def _risk_level(
+    bacteria,
+    probability,
+):
+    thresholds = APP_THRESHOLDS[
+        bacteria
+    ]
+
+    if (
+        probability
+        < thresholds[
+            "caution"
+        ]
+    ):
+
+        return "Safe"
+
+    if (
+        probability
+        < thresholds[
+            "unsafe"
+        ]
+    ):
+
+        return "Caution"
+
+    return "Unsafe"
+
+
+def _overall_risk(
+    e_coli_risk,
+    enterococcus_risk,
+):
+    return max(
+        [
+            e_coli_risk,
+            enterococcus_risk,
+        ],
+        key=lambda value:
+            RISK_ORDER.get(
+                value,
+                -1,
+            ),
+    )
+
+
+def _safety_message(
+    risk,
+):
+    if risk == "Unsafe":
+
+        return (
+            "The model predicts elevated bacterial risk. "
+            "Avoid water contact and follow official "
+            "San Mateo County guidance."
+        )
+
+    if risk == "Caution":
+
+        return (
+            "The model predicts moderate or uncertain "
+            "bacterial risk. Check official San Mateo "
+            "County information before entering the water."
+        )
+
+    return (
+        "The model currently predicts a low likelihood "
+        "of elevated bacterial risk. Always check official "
+        "San Mateo County information before entering "
+        "the water."
+    )
+
+
+# ==========================================================
+# MODEL VERSION
+# ==========================================================
+
+def _model_version():
+    manifest = _load_manifest()
+
+    return str(
+        manifest.get(
+            "pipeline_version",
+            "v12",
+        )
+    )
+
+
+# ==========================================================
+# CURRENT PACIFIC TIME
+# ==========================================================
+
+def _pacific_now():
+    return datetime.now(
+        ZoneInfo(
+            PACIFIC_TIMEZONE
+        )
+    )
+
+
+def _pacific_today():
+    return pd.Timestamp(
+        _pacific_now().date()
+    )
+
+
+# ==========================================================
+# CREATE ONE OUTPUT ROW
+# ==========================================================
+
+def _generate_prediction_row(
+    target_date,
+    weather,
+    dataset,
+):
+    target = pd.Timestamp(
+        target_date
+    ).normalize()
+
+    e_coli_model = _load_model(
+        "E. coli"
+    )
+
+    enterococcus_model = _load_model(
+        "Enterococcus"
+    )
+
+    e_coli_features = _load_features(
+        "E. coli"
+    )
+
+    enterococcus_features = _load_features(
+        "Enterococcus"
+    )
+
+    (
+        e_coli_probability,
+        e_coli_latest_lab,
+        e_coli_latest_lab_date,
+    ) = _predict_bacteria(
+        bacteria="E. coli",
+        model=e_coli_model,
+        features=e_coli_features,
+        target_date=target,
+        weather=weather,
+        dataset=dataset,
+    )
+
+    (
+        enterococcus_probability,
+        enterococcus_latest_lab,
+        enterococcus_latest_lab_date,
+    ) = _predict_bacteria(
+        bacteria="Enterococcus",
+        model=enterococcus_model,
+        features=enterococcus_features,
+        target_date=target,
+        weather=weather,
+        dataset=dataset,
+    )
+
+    e_coli_risk = _risk_level(
+        "E. coli",
+        e_coli_probability,
+    )
+
+    enterococcus_risk = _risk_level(
+        "Enterococcus",
+        enterococcus_probability,
+    )
+
+    overall_risk = _overall_risk(
+        e_coli_risk,
+        enterococcus_risk,
+    )
+
+    generation_time = (
+        _pacific_now()
+    )
+
+    # Weather predictors for target t end at t-1.
+    latest_weather_input_date = (
+        target
+        - pd.Timedelta(
+            days=1
+        )
+    )
+
+    lab_dates = [
+        value
+        for value
+        in [
+            e_coli_latest_lab_date,
+            enterococcus_latest_lab_date,
+        ]
+        if pd.notna(
+            value
+        )
+    ]
+
+    latest_lab_date = (
+        max(
+            lab_dates
+        )
+        if lab_dates
+        else pd.NaT
+    )
+
+    row = {
+        "site_id":
+            SITE_ID,
+
+        "site_name":
+            SITE_NAME,
+
+        "county":
+            COUNTY,
+
+        "latitude":
+            SITE_LAT,
+
+        "longitude":
+            SITE_LON,
+
+        "prediction_date":
+            target,
+
+        "data_last_updated":
+            generation_time.isoformat(),
+
+        "e_coli_probability":
+            e_coli_probability,
+
+        "enterococcus_probability":
+            enterococcus_probability,
+
+        "e_coli_risk":
+            e_coli_risk,
+
+        "enterococcus_risk":
+            enterococcus_risk,
+
+        "overall_risk":
+            overall_risk,
+
+        "risk_color":
+            RISK_COLORS[
+                overall_risk
+            ],
+
+        "safety_message":
+            _safety_message(
+                overall_risk
+            ),
+
+        "model_version":
+            _model_version(),
+
+        "source_dataset":
+            (
+                "California Water Boards/SWAMP "
+                "laboratory observations + "
+                "Open-Meteo weather"
+            ),
+
+        # Latest actual lab observation available before
+        # target date.
+        "source_record_date":
+            (
+                latest_lab_date
+                if pd.notna(
+                    latest_lab_date
+                )
+                else pd.NaT
+            ),
+
+        # Latest environmental date used in the weather
+        # feature windows.
+        "input_data_end_date":
+            latest_weather_input_date,
+
+        # This is when LIVE inference happened.
+        "model_run_timestamp":
+            generation_time.isoformat(),
+
+        "data_quality_status":
+            "Valid",
+
+        "notes":
+            (
+                "Live weather-based experimental forecast. "
+                "Weather features follow Version 12 "
+                "training-date definitions."
+            ),
+
+        # Extra transparency fields. Existing pages can
+        # ignore them safely.
+        "latest_lab_sample_date":
+            (
+                latest_lab_date
+                if pd.notna(
+                    latest_lab_date
+                )
+                else pd.NaT
+            ),
+
+        "e_coli_latest_lab_date":
+            (
+                e_coli_latest_lab_date
+                if pd.notna(
+                    e_coli_latest_lab_date
+                )
+                else pd.NaT
+            ),
+
+        "enterococcus_latest_lab_date":
+            (
+                enterococcus_latest_lab_date
+                if pd.notna(
+                    enterococcus_latest_lab_date
+                )
+                else pd.NaT
+            ),
+
+        "e_coli_latest_lab_value":
+            e_coli_latest_lab,
+
+        "enterococcus_latest_lab_value":
+            enterococcus_latest_lab,
+    }
+
+    return row
 
 
 # ==========================================================
 # LIVE OUTLOOK
 # ==========================================================
 
-@st.cache_data(
-    ttl=1800,
-    show_spinner=False,
-)
 def load_live_outlook(
-    days=3
+    days=8,
 ):
-    # Allows:
-    # today + next 7 days
-    days = max(
-        1,
-        min(
-            int(
-                days
-            ),
-            8,
-        ),
+    """
+    Generate today's forecast plus future forecast dates.
+
+    days=8 gives:
+        today
+        + next 7 days
+
+    Prediction date t always uses weather through t-1.
+    Therefore target-day weather is excluded exactly as in
+    Version 12 training.
+    """
+
+    days = int(
+        days
     )
 
-    dataset = (
-        _load_dataset()
-    )
+    if days < 1:
 
-    weather = (
-        _engineer_weather_features(
-            _fetch_weather()
+        raise ValueError(
+            "days must be at least 1."
         )
+
+    # Need weather through the day before the furthest
+    # prediction date.
+    forecast_days = max(
+        days,
+        8,
     )
 
-    (
-        ecoli_model,
-        ecoli_features,
-    ) = (
-        _load_model_and_features(
-            "E. coli"
-        )
+    weather = _fetch_open_meteo_weather(
+        past_days=60,
+        forecast_days=forecast_days,
     )
 
-    (
-        entero_model,
-        entero_features,
-    ) = (
-        _load_model_and_features(
-            "Enterococcus"
-        )
-    )
+    dataset = _load_historical_dataset()
 
-    today = (
-        pd.Timestamp.now(
-            tz=TIMEZONE
-        )
-        .tz_localize(
-            None
-        )
-        .normalize()
-    )
-
-    model_version = (
-        _model_version()
-    )
+    today = _pacific_today()
 
     rows = []
 
     for offset in range(
         days
     ):
-        target_date = (
+
+        target = (
             today
             + pd.Timedelta(
                 days=offset
             )
         )
 
-        if (
-            target_date
-            not in weather.index
-        ):
-            continue
-
-        (
-            ecoli_probability,
-            _,
-            _,
-        ) = _predict_bacteria(
-            "E. coli",
-            ecoli_model,
-            ecoli_features,
-            target_date,
-            weather,
-            dataset,
-        )
-
-        (
-            entero_probability,
-            _,
-            _,
-        ) = _predict_bacteria(
-            "Enterococcus",
-            entero_model,
-            entero_features,
-            target_date,
-            weather,
-            dataset,
-        )
-
-        ecoli_risk = (
-            risk_level(
-                "E. coli",
-                ecoli_probability,
-            )
-        )
-
-        entero_risk = (
-            risk_level(
-                "Enterococcus",
-                entero_probability,
-            )
-        )
-
         rows.append(
-            {
-                "site_id":
-                    SITE_ID,
-
-                "site_name":
-                    SITE_NAME,
-
-                "latitude":
-                    SITE_LAT,
-
-                "longitude":
-                    SITE_LON,
-
-                "prediction_date":
-                    target_date,
-
-                "data_last_updated":
-                    today,
-
-                "e_coli_probability":
-                    float(
-                        ecoli_probability
-                    ),
-
-                "enterococcus_probability":
-                    float(
-                        entero_probability
-                    ),
-
-                "e_coli_risk":
-                    ecoli_risk,
-
-                "enterococcus_risk":
-                    entero_risk,
-
-                "overall_risk":
-                    overall_risk(
-                        ecoli_risk,
-                        entero_risk,
-                    ),
-
-                "model_version":
-                    model_version,
-
-                "forecast_source":
-                    "Open-Meteo",
-            }
+            _generate_prediction_row(
+                target_date=target,
+                weather=weather,
+                dataset=dataset,
+            )
         )
 
-    if not rows:
-        raise RuntimeError(
-            "Live weather forecast returned "
-            "no usable forecast dates."
-        )
+    result = pd.DataFrame(
+        rows
+    )
+
+    result[
+        "prediction_date"
+    ] = pd.to_datetime(
+        result[
+            "prediction_date"
+        ],
+        errors="coerce",
+    )
 
     return (
-        pd.DataFrame(
-            rows
-        )
+        result
         .sort_values(
             "prediction_date"
         )
@@ -1927,202 +2268,194 @@ def load_live_outlook(
 
 
 # ==========================================================
-# TODAY'S LIVE FORECAST
+# CURRENT LIVE FORECAST
 # ==========================================================
 
-@st.cache_data(
-    ttl=1800,
-    show_spinner=False,
-)
 def load_live_latest():
-    outlook = (
-        load_live_outlook(
-            days=1
-        )
+    """
+    Generate the current day's live LagoonCast forecast.
+    """
+
+    outlook = load_live_outlook(
+        days=1
     )
 
     if outlook.empty:
-        raise RuntimeError(
-            "No live AquaCast "
-            "prediction is available."
+
+        raise ValueError(
+            "Live forecast returned no rows."
         )
 
-    return (
-        outlook
-        .iloc[0]
-        .copy()
-    )
+    return outlook.iloc[
+        0
+    ].copy()
 
 
 # ==========================================================
-# RECENT MODEL ESTIMATES
+# RECENT RECONSTRUCTED ESTIMATES
 # ==========================================================
 
-@st.cache_data(
-    ttl=1800,
-    show_spinner=False,
-)
 def load_recent_estimates(
-    days=30
+    days=14,
 ):
-    days = max(
-        7,
-        min(
-            int(
-                days
-            ),
-            30,
-        ),
+    """
+    Reconstruct model estimates for recent PRIOR dates.
+
+    These are NOT saved forecasts.
+
+    Each historical target date:
+      - uses weather only through t-1
+      - uses laboratory observations strictly before t
+
+    The returned series ends yesterday so the current day is
+    reserved for the genuine live forecast.
+    """
+
+    days = int(
+        days
     )
 
-    dataset = (
-        _load_dataset()
+    if days < 1:
+
+        raise ValueError(
+            "days must be at least 1."
+        )
+
+    # Need up to 14 prior days for the earliest requested
+    # estimate, plus a safety margin.
+    required_past_days = max(
+        60,
+        days + 20,
     )
 
-    weather = (
-        _engineer_weather_features(
-            _fetch_weather()
-        )
+    weather = _fetch_open_meteo_weather(
+        past_days=required_past_days,
+        forecast_days=8,
     )
 
-    (
-        ecoli_model,
-        ecoli_features,
-    ) = (
-        _load_model_and_features(
-            "E. coli"
-        )
-    )
+    dataset = _load_historical_dataset()
 
-    (
-        entero_model,
-        entero_features,
-    ) = (
-        _load_model_and_features(
-            "Enterococcus"
-        )
-    )
-
-    today = (
-        pd.Timestamp.now(
-            tz=TIMEZONE
-        )
-        .tz_localize(
-            None
-        )
-        .normalize()
-    )
+    today = _pacific_today()
 
     start_date = (
         today
         - pd.Timedelta(
-            days=days - 1
+            days=days
         )
+    )
+
+    end_date = (
+        today
+        - pd.Timedelta(
+            days=1
+        )
+    )
+
+    dates = pd.date_range(
+        start=start_date,
+        end=end_date,
+        freq="D",
     )
 
     rows = []
 
-    for target_date in (
-        pd.date_range(
-            start_date,
-            today,
-            freq="D",
-        )
-    ):
+    for target in dates:
 
-        if (
-            target_date
-            not in weather.index
-        ):
-            continue
-
-        try:
-            (
-                ecoli_probability,
-                _,
-                _,
-            ) = _predict_bacteria(
-                "E. coli",
-                ecoli_model,
-                ecoli_features,
-                target_date,
-                weather,
-                dataset,
-            )
-
-            (
-                entero_probability,
-                _,
-                _,
-            ) = _predict_bacteria(
-                "Enterococcus",
-                entero_model,
-                entero_features,
-                target_date,
-                weather,
-                dataset,
-            )
-
-        except Exception:
-            continue
-
-        ecoli_risk = (
-            risk_level(
-                "E. coli",
-                ecoli_probability,
-            )
+        row = _generate_prediction_row(
+            target_date=target,
+            weather=weather,
+            dataset=dataset,
         )
 
-        entero_risk = (
-            risk_level(
-                "Enterococcus",
-                entero_probability,
-            )
+        row[
+            "estimate_type"
+        ] = (
+            "Reconstructed model estimate"
+        )
+
+        row[
+            "is_reconstructed"
+        ] = True
+
+        row[
+            "notes"
+        ] = (
+            "Reconstructed historical model estimate. "
+            "Not a saved historical forecast and not a "
+            "laboratory measurement."
         )
 
         rows.append(
-            {
-                "prediction_date":
-                    target_date,
-
-                "e_coli_probability":
-                    float(
-                        ecoli_probability
-                    ),
-
-                "enterococcus_probability":
-                    float(
-                        entero_probability
-                    ),
-
-                "e_coli_risk":
-                    ecoli_risk,
-
-                "enterococcus_risk":
-                    entero_risk,
-
-                "overall_risk":
-                    overall_risk(
-                        ecoli_risk,
-                        entero_risk,
-                    ),
-            }
+            row
         )
 
-    if not rows:
-        raise RuntimeError(
-            "No recent trend estimates "
-            "could be generated."
-        )
+    result = pd.DataFrame(
+        rows
+    )
+
+    if result.empty:
+
+        return result
+
+    result[
+        "prediction_date"
+    ] = pd.to_datetime(
+        result[
+            "prediction_date"
+        ],
+        errors="coerce",
+    )
 
     return (
-        pd.DataFrame(
-            rows
-        )
+        result
         .sort_values(
             "prediction_date"
         )
         .reset_index(
             drop=True
         )
+    )
+
+
+# ==========================================================
+# OPTIONAL DEBUG / QA HELPER
+# ==========================================================
+
+def build_feature_snapshot(
+    bacteria,
+    target_date=None,
+):
+    """
+    QA helper for checking the exact feature row that will
+    be sent into one deployed model.
+
+    This is useful for unit tests and for verifying that:
+      rain_1day      = t-1
+      rain_1day_lag1 = t-2
+      rain_1day_lag2 = t-3
+
+    It is not used by the public interface.
+    """
+
+    if target_date is None:
+
+        target_date = _pacific_today()
+
+    weather = _fetch_open_meteo_weather(
+        past_days=60,
+        forecast_days=8,
+    )
+
+    dataset = _load_historical_dataset()
+
+    features = _load_features(
+        bacteria
+    )
+
+    return _build_feature_row(
+        features=features,
+        target_date=target_date,
+        weather=weather,
+        dataset=dataset,
+        bacteria=bacteria,
     )
