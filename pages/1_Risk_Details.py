@@ -15,9 +15,10 @@ from utils.ui import (
 
 
 st.set_page_config(
-    page_title="Risk Details | LagoonCast",
-    page_icon="🌊",
+    page_title="LagoonCast | Model & Data",
+    page_icon="assets/LagoonCast_favicon.png",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 apply_styles()
