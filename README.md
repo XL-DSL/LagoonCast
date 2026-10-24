@@ -106,8 +106,6 @@ The Limitations page explains where LagoonCast should and should not be relied u
 
 LagoonCast's current architecture performs **live model inference**. It is not simply displaying a precomputed spreadsheet.
 
-```mermaid
-flowchart TD
     A["Historical bacteria monitoring data<br/>California Water Boards / SWAMP"]
     B["Historical weather data<br/>NOAA / NCEI"]
     C["Model development and validation<br/>Python / scikit-learn"]
@@ -137,7 +135,6 @@ flowchart TD
 
     M["Historical saved prediction data"]
     M -. "historical reference / backup metadata" .-> L
-```
 
 ### Primary Live Forecast Path
 
