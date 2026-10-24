@@ -9,9 +9,15 @@ from utils.ui import APP_NAME
 
 st.set_page_config(
     page_title=f"{APP_NAME} | Water Quality Forecast",
-    page_icon="🌊",
+    page_icon="assets/LagoonCast_favicon.png",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+
+st.logo(
+    "assets/LagoonCast_logo.png",
+    icon_image="assets/LagoonCast_favicon.png",
 )
 
 
