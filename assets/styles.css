@@ -2196,3 +2196,27 @@ div[data-testid="stLinkButton"] a {
     }
 
 }
+/* ==========================================================
+   LAGOONCAST SIDEBAR LOGO — LARGE
+   ========================================================== */
+
+[data-testid="stSidebarHeader"] {
+    height: auto !important;
+    min-height: 120px !important;
+    padding: 18px 18px 10px 18px !important;
+}
+
+[data-testid="stSidebarLogo"] {
+    width: 220px !important;
+    max-width: 220px !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+[data-testid="stSidebarLogo"] img {
+    width: 220px !important;
+    max-width: 220px !important;
+    height: auto !important;
+    max-height: none !important;
+    object-fit: contain !important;
+}
