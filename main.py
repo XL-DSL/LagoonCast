@@ -15,9 +15,12 @@ st.set_page_config(
 )
 
 
+# ==========================================================
+# SIDEBAR LOGO
+# ==========================================================
+
 st.logo(
     "assets/LagoonCast_logo.png",
-    icon_image="assets/LagoonCast_favicon.png",
 )
 
 
@@ -86,7 +89,7 @@ limitations = st.Page(
 
 navigation = st.navigation(
     {
-        f"🌊 {APP_NAME}": [
+        "": [
             current_forecast,
             timeline,
             recent_trends,
