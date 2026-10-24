@@ -470,82 +470,21 @@ header.stAppHeader {
 }
 
 /* ==========================================================
-   CLOSED SIDEBAR BUTTON ONLY
-
-   CLOSED >>:
-   always visible
-   rounded navy background
-   white icon
-
-   OPEN <<:
-   untouched
-   still appears only when the sidebar is hovered
+   SIDEBAR — ALWAYS OPEN ON DESKTOP
+   Keep normal Streamlit behavior on phones.
    ========================================================== */
 
-button[data-testid="stExpandSidebarButton"] {
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
+@media (min-width: 641px) {
 
-    background-color: #1A1A2E !important;
-    color: #FFFFFF !important;
+    /* Do not allow users to collapse the desktop sidebar */
+    [data-testid="stSidebarCollapseButton"] {
+        display: none !important;
+    }
 
-    width: 42px !important;
-    height: 40px !important;
-    min-width: 42px !important;
-    min-height: 40px !important;
-
-    padding: 0 !important;
-
-    border: none !important;
-    border-radius: 10px !important;
-    box-shadow: none !important;
-
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-
-    transition: background-color 0.15s ease !important;
-}
-
-button[data-testid="stExpandSidebarButton"] span {
-    color: #FFFFFF !important;
-}
-
-button[data-testid="stExpandSidebarButton"] svg {
-    color: #FFFFFF !important;
-    fill: #FFFFFF !important;
-    stroke: #FFFFFF !important;
-}
-
-button[data-testid="stExpandSidebarButton"]:hover {
-    background-color: #2D2D4E !important;
-}
-
-button[data-testid="stExpandSidebarButton"]:focus-visible {
-    outline: 2px solid #90CAF9 !important;
-    outline-offset: 2px !important;
-}
-/* ==========================================================
-   OPEN SIDEBAR COLLAPSE BUTTON
-   Always show << without requiring hover
-   ========================================================== */
-
-[data-testid="stSidebarCollapseButton"] {
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: flex !important;
-}
-
-[data-testid="stSidebarCollapseButton"] button {
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-[data-testid="stSidebarCollapseButton"] span,
-[data-testid="stSidebarCollapseButton"] svg {
-    visibility: visible !important;
-    opacity: 1 !important;
+    /* No custom reopen / popup button */
+    button[data-testid="stExpandSidebarButton"] {
+        display: none !important;
+    }
 }
 /* ==========================================================
    LagoonCast DESIGN POLISH
