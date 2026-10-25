@@ -2220,3 +2220,19 @@ div[data-testid="stLinkButton"] a {
     max-height: none !important;
     object-fit: contain !important;
 }
+/* ==========================================================
+   STREAMLIT ALERT TEXT FIX
+   Keep warning/info/error text readable on light backgrounds
+   ========================================================== */
+
+[data-testid="stAlert"],
+[data-testid="stAlert"] p,
+[data-testid="stAlert"] span,
+[data-testid="stAlert"] div {
+    color: #344054 !important;
+}
+
+/* Warning boxes */
+[data-testid="stAlert"] {
+    font-weight: 500;
+}
