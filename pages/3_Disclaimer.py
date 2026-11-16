@@ -1,8 +1,16 @@
+
 import streamlit as st
 
 from utils.styles import apply_styles
 from utils.ui import (
+    ADVISORY_URL,
+    ADVISORY_BUTTON_LABEL,
     OFFICIAL_URL,
+    REPORTS_BUTTON_LABEL,
+    PREDICTION_EXPLANATION,
+    SAFE_EXPLANATION,
+    OFFICIAL_PRIORITY_NOTICE,
+    MODEL_LIMITATION_NOTICE,
     render_footer,
 )
 
@@ -19,7 +27,8 @@ st.title(
 )
 
 st.caption(
-    "How to interpret LagoonCast and where its information comes from."
+    "How to interpret LagoonCast predictions, understand "
+    "their limitations, and find official water-quality information."
 )
 
 
@@ -28,7 +37,7 @@ st.caption(
 # ==========================================================
 
 st.html(
-    """
+    f"""
 <div style="
     background:#FFF8CC;
     color:#5C4A00;
@@ -40,25 +49,45 @@ st.html(
 ">
 
     <strong>
-        Official information always takes priority.
+        Official water-quality information always takes priority.
     </strong>
 
-    <br>
+    <p style="margin:0.6rem 0 0;">
+        {OFFICIAL_PRIORITY_NOTICE}
+    </p>
 
-    LagoonCast is an experimental research prototype.
-    It does not issue government advisories, postings,
-    or closures.
+    <p style="margin:0.6rem 0 0;">
+        LagoonCast provides independent model predictions.
+        It does not issue government advisories,
+        warnings, or closures.
+    </p>
 
 </div>
 """
 )
 
 
-st.link_button(
-    "View Official San Mateo County Beach Status",
-    OFFICIAL_URL,
-    width="stretch",
+official_col1, official_col2 = st.columns(
+    2
 )
+
+
+with official_col1:
+
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
+        width="stretch",
+    )
+
+
+with official_col2:
+
+    st.link_button(
+        REPORTS_BUTTON_LABEL,
+        OFFICIAL_URL,
+        width="stretch",
+    )
 
 
 # ==========================================================
@@ -71,17 +100,133 @@ st.subheader(
 
 
 st.write(
-    "LagoonCast estimates the probability that E. coli or "
-    "Enterococcus concentrations exceed the model's "
-    "elevated-risk concentration threshold. It does not "
-    "predict an exact bacteria concentration."
+    PREDICTION_EXPLANATION
 )
 
 
 st.write(
-    "Safe, Caution, and Unsafe are LagoonCast model "
-    "communication categories. They should not be interpreted "
-    "as official government posting or closure categories."
+    "LagoonCast estimates the probability that E. coli or "
+    "Enterococcus concentrations exceed their respective "
+    "model-defined concentration thresholds. These probabilities "
+    "are not direct measurements or predictions of exact "
+    "bacterial concentrations."
+)
+
+
+st.write(
+    "The two bacteria are evaluated separately. LagoonCast "
+    "uses the more severe bacteria-specific classification "
+    "to determine the overall risk category. It does not "
+    "calculate a single combined probability of water safety."
+)
+
+
+# ==========================================================
+# RISK CLASSIFICATIONS
+# ==========================================================
+
+st.subheader(
+    "Understanding Safe, Caution, and Unsafe"
+)
+
+
+st.write(
+    "LagoonCast organizes its predictions into three categories "
+    "to help communicate bacterial risk. These are model-generated "
+    "categories, not official government advisories or closures."
+)
+
+
+st.markdown(
+    """
+**Safe — Lower predicted risk**
+
+The model estimates lower bacterial risk based on the available
+environmental information. This does not guarantee safe conditions.
+
+**Caution — Possible elevated risk**
+
+The model identifies conditions that may indicate elevated
+bacterial risk. Check official water-quality information
+before entering the water.
+
+**Unsafe — Elevated predicted risk**
+
+The model indicates elevated bacterial risk. Avoid water
+contact and follow official public-health guidance.
+"""
+)
+
+
+st.info(
+    SAFE_EXPLANATION
+)
+
+
+# ==========================================================
+# PREDICTION UNCERTAINTY
+# ==========================================================
+
+st.subheader(
+    "What if the prediction is incorrect?"
+)
+
+
+st.write(
+    MODEL_LIMITATION_NOTICE
+)
+
+
+st.write(
+    "Like other statistical models, LagoonCast can make "
+    "incorrect predictions. Two important types of errors are:"
+)
+
+
+st.markdown(
+    """
+- **False negative:** LagoonCast predicts lower bacterial risk,
+  but laboratory testing would show elevated bacteria levels.
+  This is especially important because users might incorrectly
+  assume that the water is safe.
+
+- **False positive:** LagoonCast predicts elevated bacterial risk,
+  but laboratory testing would not show an exceedance.
+  This may result in a more cautious assessment than necessary.
+"""
+)
+
+
+st.write(
+    "Bacterial concentrations can change between laboratory "
+    "sampling events, particularly following rainfall, runoff, "
+    "or other environmental disturbances. LagoonCast cannot "
+    "detect every such change and cannot guarantee that its "
+    "predictions reflect actual water conditions."
+)
+
+
+# ==========================================================
+# CONFLICTS WITH OFFICIAL ADVISORIES
+# ==========================================================
+
+st.subheader(
+    "What if LagoonCast disagrees with an official advisory?"
+)
+
+
+st.write(
+    "Official advisories and closures always take priority, "
+    "regardless of LagoonCast's prediction."
+)
+
+
+st.write(
+    'For example, if LagoonCast displays "Safe" while '
+    "San Mateo County has issued a closure or warning, "
+    "follow the county's instructions. LagoonCast's "
+    "prediction does not override official water-quality "
+    "information."
 )
 
 
@@ -91,6 +236,13 @@ st.write(
 
 st.subheader(
     "Data sources"
+)
+
+
+st.write(
+    "LagoonCast uses historical bacterial observations "
+    "and environmental information to develop and "
+    "generate its predictions."
 )
 
 
@@ -134,7 +286,7 @@ with source3:
 with source4:
 
     st.link_button(
-        "San Mateo County Beach Information",
+        REPORTS_BUTTON_LABEL,
         OFFICIAL_URL,
         width="stretch",
     )
@@ -150,9 +302,17 @@ with st.expander(
 
     st.write(
         "Historical E. coli and Enterococcus observations "
-        "are used to train and evaluate LagoonCast. "
-        "Laboratory observations are not continuously available, "
-        "so the live forecast is not a real-time bacteria sensor."
+        "are used to train and evaluate LagoonCast's models. "
+        "These measurements come from laboratory testing "
+        "rather than continuous monitoring."
+    )
+
+    st.write(
+        "The latest laboratory measurement may not represent "
+        "current conditions. LagoonCast uses environmental "
+        "information to estimate risk between routine "
+        "sampling events, but it does not directly "
+        "measure bacteria in real time."
     )
 
 
@@ -163,8 +323,14 @@ with st.expander(
     st.write(
         "Historical weather information supports model "
         "development, while the live application uses "
-        "forecast environmental conditions to estimate "
-        "future bacterial risk."
+        "recent and forecast environmental conditions "
+        "to estimate bacterial risk."
+    )
+
+    st.write(
+        "Weather forecasts and environmental measurements "
+        "may contain uncertainty. These uncertainties "
+        "can affect the reliability of model predictions."
     )
 
 
@@ -178,6 +344,12 @@ with st.expander(
         "included in the selected deployed model configuration."
     )
 
+    st.write(
+        "As a result, LagoonCast may not fully account for "
+        "every environmental factor influencing bacterial "
+        "concentrations at the pilot site."
+    )
+
 
 # ==========================================================
 # PUBLIC SAFETY
@@ -189,10 +361,35 @@ st.subheader(
 
 
 st.write(
-    "Check current official beach information, follow posted "
-    "signage, and use local public-health guidance. LagoonCast "
-    "should be treated as supplemental research information only."
+    "LagoonCast is intended to provide additional information "
+    "about possible bacterial risk, particularly between "
+    "routine monitoring events. It is not a substitute "
+    "for official water-quality testing or public-health "
+    "guidance."
 )
 
+
+st.markdown(
+    """
+Before entering the water:
+
+1. Check the latest official county advisories and reports.
+2. Follow posted warning signs and closure notices.
+3. Remember that a low-risk prediction does not guarantee
+   that bacteria levels are safe.
+"""
+)
+
+
+st.link_button(
+    ADVISORY_BUTTON_LABEL,
+    ADVISORY_URL,
+    width="stretch",
+)
+
+
+# ==========================================================
+# FOOTER
+# ==========================================================
 
 render_footer()
