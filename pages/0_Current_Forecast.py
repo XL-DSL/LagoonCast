@@ -1,3 +1,4 @@
+
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
@@ -200,6 +201,63 @@ entero_class = risk_class(
 )
 
 
+# ==========================================================
+# DISPLAY-ONLY RISK DRIVER
+#
+# Original model probabilities and classifications remain
+# unchanged. Identify which bacterium determines the overall
+# category without creating a combined probability.
+# ==========================================================
+
+risk_rank = {
+    "Safe": 0,
+    "Caution": 1,
+    "Unsafe": 2,
+}
+
+expected_overall_risk = max(
+    (ecoli_risk, entero_risk),
+    key=lambda label: risk_rank.get(label, -1),
+)
+
+if overall_risk != expected_overall_risk:
+    risk_driver_name = "See individual bacteria"
+    risk_driver_reason = (
+        "The overall and bacteria-specific labels do not align. "
+        "Please use the official water-quality information."
+    )
+
+elif overall_risk == "Safe":
+    risk_driver_name = "No elevated driver identified"
+    risk_driver_reason = (
+        "Both bacteria are classified as Safe by LagoonCast. "
+        "This does not guarantee safe water."
+    )
+
+else:
+    risk_drivers = [
+        name
+        for name, category in (
+            ("E. coli", ecoli_risk),
+            ("Enterococcus", entero_risk),
+        )
+        if category == overall_risk
+    ]
+
+    risk_driver_name = " and ".join(risk_drivers)
+
+    if len(risk_drivers) == 2:
+        risk_driver_reason = (
+            f"Both bacteria are classified as {overall_risk}, "
+            "so both contribute to the overall category."
+        )
+    else:
+        risk_driver_reason = (
+            f"{risk_driver_name} has the more severe risk category "
+            f"({overall_risk}) and determines the overall result."
+        )
+
+
 prediction_text = (
     prediction_date.strftime(
         "%b %d, %Y"
@@ -288,6 +346,45 @@ st.html(
 
         </div>
 
+        <!-- RISK DRIVER INDICATOR -->
+
+        <div style="
+            margin: 0 0 1.25rem;
+            padding: 0.8rem 1rem;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.24);
+            border-radius: 12px;
+            color: white;
+        ">
+
+            <div style="
+                font-size: 0.74rem;
+                font-weight: 700;
+                letter-spacing: 0.07em;
+                opacity: 0.85;
+            ">
+                RISK DRIVER
+            </div>
+
+            <div style="
+                font-size: 1.08rem;
+                font-weight: 700;
+                margin-top: 0.3rem;
+            ">
+                {risk_driver_name}
+            </div>
+
+            <div style="
+                font-size: 0.87rem;
+                line-height: 1.45;
+                margin-top: 0.25rem;
+                opacity: 0.92;
+            ">
+                {risk_driver_reason}
+            </div>
+
+        </div>
+
         <a
             class="bg-primary-button hero-button"
             href="{OFFICIAL_URL}"
@@ -362,11 +459,11 @@ entero_meter = probability_meter(
 
 
 # ==========================================================
-# WATER QUALITY RISK CARDS
+# OVERALL RISK EXPLANATION
 # ==========================================================
 
 st.html(
-    f"""
+    """
 <div class="bg-home-shell">
 
     <div class="bg-section-title-row">
@@ -378,104 +475,136 @@ st.html(
             </h2>
 
             <p class="bg-section-subtitle">
-                Predicted probability that bacterial
-                levels exceed the model's
-                elevated-risk concentration threshold.
+                LagoonCast predicts E. coli and Enterococcus
+                separately. The overall Safe, Caution, or Unsafe
+                category follows the more severe of the two
+                bacteria-specific categories. It is not a combined
+                probability of water safety.
             </p>
 
         </div>
 
     </div>
 
-
-    <div class="bg-risk-grid">
-
-        <article class="bg-risk-card {ecoli_class}">
-
-            <div class="bg-risk-card-top">
-
-                <div class="bg-organism-icon">
-                    EC
-                </div>
-
-                <div>
-
-                    <div class="bg-risk-card-name">
-                        E. coli
-                    </div>
-
-                    <div class="bg-risk-pill {ecoli_class}">
-                        {risk_icon(ecoli_risk)}
-                        {ecoli_risk}
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="bg-risk-value">
-                {ecoli_prob:.0%}
-            </div>
-
-            <div class="bg-risk-value-label">
-                Predicted exceedance probability
-            </div>
-
-            {ecoli_meter}
-
-            <div class="bg-risk-threshold">
-                Model-defined concentration threshold:
-                <strong>235 MPN/100 mL</strong>
-            </div>
-
-        </article>
-
-
-        <article class="bg-risk-card {entero_class}">
-
-            <div class="bg-risk-card-top">
-
-                <div class="bg-organism-icon">
-                    EN
-                </div>
-
-                <div>
-
-                    <div class="bg-risk-card-name">
-                        Enterococcus
-                    </div>
-
-                    <div class="bg-risk-pill {entero_class}">
-                        {risk_icon(entero_risk)}
-                        {entero_risk}
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="bg-risk-value">
-                {entero_prob:.0%}
-            </div>
-
-            <div class="bg-risk-value-label">
-                Predicted exceedance probability
-            </div>
-
-            {entero_meter}
-
-            <div class="bg-risk-threshold">
-                Model-defined concentration threshold:
-                <strong>130 MPN/100 mL</strong>
-            </div>
-
-        </article>
-
-    </div>
-
 </div>
 """
 )
+
+
+# ==========================================================
+# EXPANDABLE E. COLI DETAILS
+# ==========================================================
+
+with st.expander(
+    f"E. coli — {ecoli_risk}",
+    expanded=False,
+):
+    st.html(
+        f"""
+<div class="bg-home-shell">
+
+    <article class="bg-risk-card {ecoli_class}">
+
+        <div class="bg-risk-card-top">
+
+            <div class="bg-organism-icon">
+                EC
+            </div>
+
+            <div>
+
+                <div class="bg-risk-card-name">
+                    E. coli
+                </div>
+
+                <div class="bg-risk-pill {ecoli_class}">
+                    {risk_icon(ecoli_risk)}
+                    {ecoli_risk}
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="bg-risk-value">
+            {ecoli_prob:.0%}
+        </div>
+
+        <div class="bg-risk-value-label">
+            Predicted exceedance probability, not the
+            probability that swimming is safe
+        </div>
+
+        {ecoli_meter}
+
+        <div class="bg-risk-threshold">
+            Model-defined concentration threshold:
+            <strong>235 MPN/100 mL</strong>
+        </div>
+
+    </article>
+
+</div>
+"""
+    )
+
+
+# ==========================================================
+# EXPANDABLE ENTEROCOCCUS DETAILS
+# ==========================================================
+
+with st.expander(
+    f"Enterococcus — {entero_risk}",
+    expanded=False,
+):
+    st.html(
+        f"""
+<div class="bg-home-shell">
+
+    <article class="bg-risk-card {entero_class}">
+
+        <div class="bg-risk-card-top">
+
+            <div class="bg-organism-icon">
+                EN
+            </div>
+
+            <div>
+
+                <div class="bg-risk-card-name">
+                    Enterococcus
+                </div>
+
+                <div class="bg-risk-pill {entero_class}">
+                    {risk_icon(entero_risk)}
+                    {entero_risk}
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="bg-risk-value">
+            {entero_prob:.0%}
+        </div>
+
+        <div class="bg-risk-value-label">
+            Predicted exceedance probability, not the
+            probability that swimming is safe
+        </div>
+
+        {entero_meter}
+
+        <div class="bg-risk-threshold">
+            Model-defined concentration threshold:
+            <strong>130 MPN/100 mL</strong>
+        </div>
+
+    </article>
+
+</div>
+"""
+    )
 
 
 # ==========================================================
