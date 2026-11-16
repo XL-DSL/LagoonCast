@@ -1,3 +1,4 @@
+
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
@@ -5,10 +6,14 @@ import streamlit as st
 from utils.live_forecast import load_live_latest
 from utils.styles import apply_styles
 from utils.ui import (
+    ADVISORY_URL,
+    ADVISORY_BUTTON_LABEL,
     OFFICIAL_URL,
+    REPORTS_BUTTON_LABEL,
+    OFFICIAL_PRIORITY_NOTICE,
+    SAFE_EXPLANATION,
     SITE_NAME,
     render_footer,
-    risk_class,
 )
 from utils.validation import load_valid_latest
 
@@ -50,8 +55,8 @@ except Exception:
         )
 
         st.link_button(
-            "View Official San Mateo County Beach Status",
-            OFFICIAL_URL,
+            ADVISORY_BUTTON_LABEL,
+            ADVISORY_URL,
             width="stretch",
         )
 
@@ -96,6 +101,36 @@ date_text = (
     )
     else "Date unavailable"
 )
+
+
+# ==========================================================
+# FORECAST SOURCE LABELS
+# ==========================================================
+
+if live_prediction:
+
+    forecast_label = "Current LagoonCast forecast"
+
+    source_text = (
+        "Live weather-based LagoonCast forecast"
+    )
+
+    map_status_label = (
+        "Current predicted risk"
+    )
+
+else:
+
+    forecast_label = "Saved historical model estimate"
+
+    source_text = (
+        "Latest validated saved LagoonCast prediction "
+        "(historical, not a current forecast)"
+    )
+
+    map_status_label = (
+        "Historical predicted risk"
+    )
 
 
 # ==========================================================
@@ -149,13 +184,30 @@ st.title(
 )
 
 st.caption(
-    "Current LagoonCast forecast location at "
-    f"{SITE_NAME}."
+    f"LagoonCast's pilot forecast location at {SITE_NAME}. "
+    "Map colors represent model-estimated bacterial risk, "
+    "not official beach advisories or closures."
 )
 
 
 # ==========================================================
+# HISTORICAL FORECAST WARNING
+# ==========================================================
+
+if not live_prediction:
+
+    st.warning(
+        "Live forecasting is currently unavailable. "
+        f"The map is displaying a saved model estimate "
+        f"dated {date_text}, not today's water-quality "
+        "forecast. Check official county information "
+        "for current conditions."
+    )
+
+
+# ==========================================================
 # COMPACT SITE SUMMARY
+# Original styling preserved.
 # ==========================================================
 
 risk_color = {
@@ -212,11 +264,26 @@ st.html(
 
 
         <div style="
-            color:{risk_color};
-            font-size:1rem;
-            font-weight:800;
+            text-align:right;
         ">
-            {overall}
+
+            <div style="
+                color:#667085;
+                font-size:0.72rem;
+                font-weight:600;
+                margin-bottom:0.15rem;
+            ">
+                {map_status_label}
+            </div>
+
+            <div style="
+                color:{risk_color};
+                font-size:1rem;
+                font-weight:800;
+            ">
+                {overall}
+            </div>
+
         </div>
 
     </div>
@@ -232,14 +299,14 @@ st.html(
     ">
 
         <span>
-            E. coli
+            E. coli predicted exceedance
             <strong style="color:#172033;">
                 {ecoli:.1%}
             </strong>
         </span>
 
         <span>
-            Enterococcus
+            Enterococcus predicted exceedance
             <strong style="color:#172033;">
                 {entero:.1%}
             </strong>
@@ -254,6 +321,7 @@ st.html(
 
 # ==========================================================
 # MAP
+# Original map design, zoom, marker size, and colors.
 # ==========================================================
 
 map_data = pd.DataFrame(
@@ -279,6 +347,9 @@ map_data = pd.DataFrame(
 
             "date":
                 date_text,
+
+            "source":
+                forecast_label,
         }
     ]
 )
@@ -325,10 +396,11 @@ deck = pdk.Deck(
     tooltip={
         "html":
             "<b>{site}</b><br/>"
-            "Current LagoonCast forecast: {overall}<br/>"
-            "E. coli: {ecoli}<br/>"
-            "Enterococcus: {entero}<br/>"
-            "Forecast date: {date}",
+            "{source}<br/>"
+            "Predicted risk: {overall}<br/>"
+            "E. coli exceedance probability: {ecoli}<br/>"
+            "Enterococcus exceedance probability: {entero}<br/>"
+            "Prediction date: {date}",
 
         "style":
             {
@@ -350,6 +422,7 @@ st.pydeck_chart(
 
 # ==========================================================
 # MAP ACTIONS
+# Original button layout preserved.
 # ==========================================================
 
 button1, button2 = st.columns(
@@ -387,33 +460,64 @@ with button2:
 # SOURCE
 # ==========================================================
 
-source_text = (
-    "Live weather-based LagoonCast forecast"
-    if live_prediction
-    else "Latest validated saved LagoonCast forecast"
+st.caption(
+    f"Forecast source: {source_text}. "
+    "Map marker color follows LagoonCast's Safe / Caution / "
+    "Unsafe classification, not official beach status."
+)
+
+
+# ==========================================================
+# SAFETY NOTES
+# ==========================================================
+
+st.warning(
+    "This map shows LagoonCast's model-estimated risk "
+    "at its pilot location. It does not indicate an "
+    "official beach closure or advisory."
 )
 
 
 st.caption(
-    f"Forecast source: {source_text}. "
-    "Map marker color uses the same Safe / Caution / "
-    "Unsafe classification shown throughout LagoonCast."
+    SAFE_EXPLANATION
 )
 
 
-st.warning(
-    "The map shows LagoonCast's pilot forecast location. "
-    "It does not indicate an official beach closure "
-    "or advisory."
+st.caption(
+    OFFICIAL_PRIORITY_NOTICE
 )
 
 
-st.link_button(
-    "View Official San Mateo County Beach Status",
-    OFFICIAL_URL,
-    width="stretch",
+# ==========================================================
+# OFFICIAL WATER-QUALITY INFORMATION
+# ==========================================================
+
+official_col1, official_col2 = st.columns(
+    2
 )
 
+
+with official_col1:
+
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
+        width="stretch",
+    )
+
+
+with official_col2:
+
+    st.link_button(
+        REPORTS_BUTTON_LABEL,
+        OFFICIAL_URL,
+        width="stretch",
+    )
+
+
+# ==========================================================
+# FOOTER
+# ==========================================================
 
 render_footer(
     str(
