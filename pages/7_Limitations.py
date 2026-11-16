@@ -1,10 +1,8 @@
+
 import streamlit as st
 
 from utils.styles import apply_styles
-from utils.ui import (
-    OFFICIAL_URL,
-    render_footer,
-)
+from utils.ui import render_footer
 
 
 apply_styles()
@@ -19,7 +17,8 @@ st.title(
 )
 
 st.caption(
-    "Important boundaries on how LagoonCast should be interpreted."
+    "Technical limitations of LagoonCast's models, "
+    "data, and forecasting approach."
 )
 
 
@@ -143,7 +142,7 @@ with card3:
 
 
 # ==========================================================
-# DETAILS
+# TECHNICAL DETAILS
 # ==========================================================
 
 st.subheader(
@@ -156,57 +155,64 @@ with st.expander(
 ):
 
     st.write(
-        "LagoonCast learns statistical relationships from historical "
-        "observations. Those relationships may change over time, "
-        "and conditions outside the historical range may produce "
-        "less reliable predictions."
+        "LagoonCast learns statistical relationships "
+        "between environmental conditions and historical "
+        "bacterial observations. These relationships may "
+        "change over time, especially under conditions "
+        "that differ from those in the training data."
     )
 
     st.write(
-        "E. coli and Enterococcus are modeled separately and "
-        "their predictive performance is not identical."
-    )
-
-
-with st.expander(
-    "Data limitations"
-):
-
-    st.write(
-        "The amount and timing of available laboratory sampling "
-        "limit what the model can learn. Missing observations and "
-        "unequal numbers of elevated-risk events can also affect "
-        "performance."
-    )
-
-    st.write(
-        "Enterococcus has fewer elevated-risk examples in the "
-        "available data, which makes that prediction task "
-        "particularly difficult."
+        "E. coli and Enterococcus are modeled separately "
+        "and have different predictive performance. "
+        "A model's performance during historical evaluation "
+        "does not guarantee the same accuracy for future predictions."
     )
 
 
 with st.expander(
-    "Weather uncertainty"
+    "Data and sampling limitations"
 ):
 
     st.write(
-        "Future LagoonCast predictions depend partly on forecast "
-        "environmental conditions. Rainfall and temperature "
-        "forecasts can change, so LagoonCast uncertainty generally "
-        "increases farther into the future."
+        "Laboratory bacteria measurements are generally "
+        "collected weekly rather than continuously. "
+        "Short-term contamination events may therefore "
+        "occur between sampling dates without being "
+        "captured in the historical record."
+    )
+
+    st.write(
+        "Missing observations and unequal numbers of "
+        "elevated-risk events can affect model training "
+        "and evaluation. Enterococcus has fewer "
+        "elevated-risk examples in the available data, "
+        "making its prediction task particularly challenging."
+    )
+
+    st.write(
+        "Some model features rely on the latest available "
+        "historical laboratory information rather than "
+        "same-day measurements."
     )
 
 
 with st.expander(
-    "Laboratory-data limitations"
+    "Weather and forecast uncertainty"
 ):
 
     st.write(
-        "The live system does not receive a new bacteria sample "
-        "every day. Some model features therefore rely on the "
-        "latest available historical laboratory information "
-        "rather than a same-day measurement."
+        "LagoonCast uses environmental conditions, "
+        "including rainfall and temperature, to estimate "
+        "bacterial risk. Future predictions also depend "
+        "on weather forecasts, which can change."
+    )
+
+    st.write(
+        "Forecast uncertainty generally increases "
+        "farther into the future. Unexpected runoff "
+        "or environmental changes may not be fully "
+        "represented by the available inputs."
     )
 
 
@@ -215,49 +221,51 @@ with st.expander(
 ):
 
     st.write(
-        "No prediction model identifies every elevated-risk event. "
-        "A false negative occurs when actual bacterial risk is "
-        "elevated but the model does not identify it as such. "
-        "This is one reason official laboratory testing and "
-        "public-health guidance remain essential."
+        "A false negative occurs when bacterial "
+        "concentrations exceed the model-defined threshold "
+        "but LagoonCast fails to identify the elevated risk."
+    )
+
+    st.write(
+        "These errors are particularly important "
+        "because a lower-risk prediction does not "
+        "guarantee that actual bacterial levels are low. "
+        "The model cannot identify every contamination event."
+    )
+
+
+with st.expander(
+    "Possible future improvements"
+):
+
+    st.write(
+        "Future development could investigate additional "
+        "environmental predictors, more frequent "
+        "monitoring data, and updated model training "
+        "as new laboratory observations become available."
+    )
+
+    st.write(
+        "Additional testing across different seasons "
+        "and monitoring locations would also help "
+        "assess how reliably LagoonCast performs "
+        "outside its original development setting."
     )
 
 
 # ==========================================================
-# SAFETY
+# FINAL NOTE
 # ==========================================================
 
-st.html(
-    """
-<div style="
-    background:#FFF8CC;
-    color:#5C4A00;
-    border:1px solid #F1E59A;
-    border-radius:12px;
-    padding:1rem 1.1rem;
-    margin-top:1.3rem;
-    margin-bottom:1rem;
-    line-height:1.5;
-">
-
-    <strong>
-        Official information takes priority.
-    </strong>
-
-    LagoonCast should never replace beach signage,
-    laboratory results, public-health advisories,
-    or official closures.
-
-</div>
-"""
+st.caption(
+    "For practical water-safety guidance, official "
+    "advisories, and explanations of how to interpret "
+    "Safe, Caution, and Unsafe, see Safety & Data Notes."
 )
 
 
-st.link_button(
-    "View Official San Mateo County Beach Status",
-    OFFICIAL_URL,
-    width="stretch",
-)
-
+# ==========================================================
+# FOOTER
+# ==========================================================
 
 render_footer()
