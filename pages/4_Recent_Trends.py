@@ -1,3 +1,4 @@
+
 import altair as alt
 import pandas as pd
 import streamlit as st
@@ -5,17 +6,22 @@ import streamlit as st
 from utils.live_forecast import load_recent_estimates
 from utils.styles import apply_styles
 from utils.ui import (
+    ADVISORY_BUTTON_LABEL,
+    ADVISORY_URL,
+    OFFICIAL_PRIORITY_NOTICE,
     OFFICIAL_URL,
+    PREDICTION_EXPLANATION,
+    REPORTS_BUTTON_LABEL,
+    SAFE_EXPLANATION,
     SITE_NAME,
     render_footer,
 )
-
 
 apply_styles()
 
 
 # ==========================================================
-# CONSTANTS
+# CONSTANTS — ORIGINAL MODEL DISPLAY THRESHOLDS
 # ==========================================================
 
 ECOLI_CAUTION = 0.10
@@ -24,7 +30,6 @@ ECOLI_UNSAFE = 0.50
 ENTERO_CAUTION = 0.40
 ENTERO_UNSAFE = 0.85
 
-
 SAFE_COLOR = "#2E7D32"
 CAUTION_COLOR = "#B26A00"
 UNSAFE_COLOR = "#C62828"
@@ -32,62 +37,42 @@ LINE_COLOR = "#0F6B78"
 
 
 # ==========================================================
-# PAGE HEADER
+# HEADER AND TIME WINDOW
 # ==========================================================
 
-st.title(
-    "Recent Trends"
-)
+st.title("Recent Trends")
 
 st.caption(
-    "Reconstructed LagoonCast model estimates for "
-    f"{SITE_NAME}. These are historical model estimates "
-    "generated from available environmental data, not "
-    "forecasts that were necessarily saved on those dates."
+    f"Reconstructed LagoonCast model estimates for {SITE_NAME}. "
+    "These are estimates generated using available historical "
+    "environmental data, not laboratory measurements or forecasts "
+    "necessarily saved on those earlier dates."
 )
-
-
-# ==========================================================
-# WINDOW
-# ==========================================================
 
 window = st.select_slider(
     "Trend window",
-    options=[
-        7,
-        14,
-        21,
-        30,
-    ],
+    options=[7, 14, 21, 30],
     value=14,
-    format_func=lambda value:
-        f"{value} days",
+    format_func=lambda value: f"{value} days",
 )
 
 
 # ==========================================================
-# LOAD
+# LOAD RECONSTRUCTED ESTIMATES
 # ==========================================================
 
 try:
-
-    with st.spinner(
-        "Loading recent LagoonCast estimates..."
-    ):
-
-        trends = load_recent_estimates(
-            days=window
-        )
+    with st.spinner("Loading recent LagoonCast estimates..."):
+        trends = load_recent_estimates(days=window)
 
 except Exception:
-
     st.error(
         "Recent LagoonCast trends are temporarily unavailable."
     )
 
     st.link_button(
-        "View Official San Mateo County Beach Status",
-        OFFICIAL_URL,
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
         width="stretch",
     )
 
@@ -96,65 +81,44 @@ except Exception:
 
 trends = trends.copy()
 
-trends[
-    "prediction_date"
-] = pd.to_datetime(
-    trends[
-        "prediction_date"
-    ],
+trends["prediction_date"] = pd.to_datetime(
+    trends["prediction_date"],
     errors="coerce",
 )
 
 trends = (
-    trends
-    .dropna(
-        subset=[
-            "prediction_date"
-        ]
-    )
-    .sort_values(
-        "prediction_date"
-    )
-    .reset_index(
-        drop=True
-    )
+    trends.dropna(subset=["prediction_date"])
+    .sort_values("prediction_date")
+    .reset_index(drop=True)
 )
 
-
 if trends.empty:
-
     st.error(
         "No recent LagoonCast estimates are available."
+    )
+
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
     )
 
     st.stop()
 
 
 # ==========================================================
-# HELPERS
+# DISPLAY HELPERS
 # ==========================================================
 
-def change_text(
-    series
-):
+def change_text(series):
     if len(series) < 2:
         return (
             "Change unavailable",
             "neutral",
         )
 
-    current = float(
-        series.iloc[-1]
-    )
-
-    previous = float(
-        series.iloc[-2]
-    )
-
-    change = (
-        current
-        - previous
-    ) * 100
+    current = float(series.iloc[-1])
+    previous = float(series.iloc[-2])
+    change = (current - previous) * 100
 
     if abs(change) < 0.05:
         return (
@@ -181,14 +145,9 @@ def trend_summary(
     change,
 ):
     risk_color = {
-        "Safe":
-            SAFE_COLOR,
-
-        "Caution":
-            CAUTION_COLOR,
-
-        "Unsafe":
-            UNSAFE_COLOR,
+        "Safe": SAFE_COLOR,
+        "Caution": CAUTION_COLOR,
+        "Unsafe": UNSAFE_COLOR,
     }.get(
         risk,
         "#667085",
@@ -258,75 +217,53 @@ def organism_chart(
     title,
 ):
     chart_data = data[
-        [
-            "prediction_date",
-            probability_column,
-        ]
+        ["prediction_date", probability_column]
     ].copy()
 
-    chart_data[
-        probability_column
-    ] = pd.to_numeric(
-        chart_data[
-            probability_column
-        ],
+    chart_data[probability_column] = pd.to_numeric(
+        chart_data[probability_column],
         errors="coerce",
     )
 
     chart_data = chart_data.dropna()
 
+    if chart_data.empty:
+        st.warning(
+            f"No chart data available for {title}."
+        )
+        return
+
     observed_max = float(
-        chart_data[
-            probability_column
-        ].max()
+        chart_data[probability_column].max()
     )
 
-    # Focus the chart while still showing the nearest
-    # decision boundary clearly.
+    # Focus the scale on recent changes while
+    # retaining relevant decision boundaries.
     y_max = max(
         observed_max + 0.08,
         caution_threshold + 0.08,
         0.20,
     )
 
-    # If observations approach the Unsafe threshold,
-    # expand the scale to show it.
-    if (
-        observed_max
-        >= unsafe_threshold * 0.70
-    ):
+    if observed_max >= unsafe_threshold * 0.70:
         y_max = max(
             y_max,
             unsafe_threshold + 0.05,
         )
 
-    y_max = min(
-        y_max,
-        1.0,
-    )
-
+    y_max = min(y_max, 1.0)
 
     start_date = (
-        chart_data[
-            "prediction_date"
-        ].min()
-        - pd.Timedelta(
-            hours=12
-        )
+        chart_data["prediction_date"].min()
+        - pd.Timedelta(hours=12)
     )
 
     end_date = (
-        chart_data[
-            "prediction_date"
-        ].max()
-        + pd.Timedelta(
-            hours=12
-        )
+        chart_data["prediction_date"].max()
+        + pd.Timedelta(hours=12)
     )
 
-
     zones = []
-
 
     safe_top = min(
         caution_threshold,
@@ -334,118 +271,58 @@ def organism_chart(
     )
 
     if safe_top > 0:
-
-        zones.append(
-            {
-                "start":
-                    start_date,
-
-                "end":
-                    end_date,
-
-                "y1":
-                    0.0,
-
-                "y2":
-                    safe_top,
-
-                "color":
-                    SAFE_COLOR,
-            }
-        )
-
+        zones.append({
+            "start": start_date,
+            "end": end_date,
+            "y1": 0.0,
+            "y2": safe_top,
+            "color": SAFE_COLOR,
+        })
 
     if y_max > caution_threshold:
-
-        caution_top = min(
-            unsafe_threshold,
-            y_max,
-        )
-
-        zones.append(
-            {
-                "start":
-                    start_date,
-
-                "end":
-                    end_date,
-
-                "y1":
-                    caution_threshold,
-
-                "y2":
-                    caution_top,
-
-                "color":
-                    CAUTION_COLOR,
-            }
-        )
-
+        zones.append({
+            "start": start_date,
+            "end": end_date,
+            "y1": caution_threshold,
+            "y2": min(
+                unsafe_threshold,
+                y_max,
+            ),
+            "color": CAUTION_COLOR,
+        })
 
     if y_max > unsafe_threshold:
+        zones.append({
+            "start": start_date,
+            "end": end_date,
+            "y1": unsafe_threshold,
+            "y2": y_max,
+            "color": UNSAFE_COLOR,
+        })
 
-        zones.append(
-            {
-                "start":
-                    start_date,
-
-                "end":
-                    end_date,
-
-                "y1":
-                    unsafe_threshold,
-
-                "y2":
-                    y_max,
-
-                "color":
-                    UNSAFE_COLOR,
-            }
-        )
-
-
-    zone_data = pd.DataFrame(
-        zones
-    )
-
-
-    base = alt.Chart(
-        chart_data
-    )
-
+    zone_data = pd.DataFrame(zones)
+    base = alt.Chart(chart_data)
 
     if not zone_data.empty:
-
         background = (
-            alt.Chart(
-                zone_data
-            )
-            .mark_rect(
-                opacity=0.10
-            )
+            alt.Chart(zone_data)
+            .mark_rect(opacity=0.10)
             .encode(
                 x=alt.X(
                     "start:T",
                     title=None,
                 ),
-
                 x2="end:T",
-
                 y=alt.Y(
                     "y1:Q",
                     scale=alt.Scale(
-                        domain=[
-                            0,
-                            y_max,
-                        ]
+                        domain=[0, y_max]
                     ),
                     axis=alt.Axis(
-                        format=".0%",
+                        format=".0%"
                     ),
                 ),
-
                 y2="y2:Q",
-
                 color=alt.Color(
                     "color:N",
                     scale=None,
@@ -455,16 +332,12 @@ def organism_chart(
         )
 
     else:
-
         background = alt.Chart(
-            pd.DataFrame(
-                {
-                    "x": [],
-                    "y": [],
-                }
-            )
+            pd.DataFrame({
+                "x": [],
+                "y": [],
+            })
         ).mark_point()
-
 
     line = (
         base
@@ -482,90 +355,56 @@ def organism_chart(
                     labelAngle=-35,
                 ),
             ),
-
             y=alt.Y(
                 f"{probability_column}:Q",
-                title="Exceedance probability",
+                title="Model-estimated exceedance probability",
                 scale=alt.Scale(
-                    domain=[
-                        0,
-                        y_max,
-                    ]
+                    domain=[0, y_max]
                 ),
                 axis=alt.Axis(
-                    format=".0%",
+                    format=".0%"
                 ),
             ),
-
             tooltip=[
                 alt.Tooltip(
                     "prediction_date:T",
                     title="Date",
                     format="%b %d, %Y",
                 ),
-
                 alt.Tooltip(
                     f"{probability_column}:Q",
-                    title="Probability",
+                    title="Estimated exceedance probability",
                     format=".1%",
                 ),
             ],
         )
     )
 
-
     rules = []
 
-
     if caution_threshold <= y_max:
-
-        rules.append(
-            {
-                "threshold":
-                    caution_threshold,
-
-                "label":
-                    "Caution threshold",
-            }
-        )
-
+        rules.append({
+            "threshold": caution_threshold,
+            "label": "Caution threshold",
+        })
 
     if unsafe_threshold <= y_max:
-
-        rules.append(
-            {
-                "threshold":
-                    unsafe_threshold,
-
-                "label":
-                    "Unsafe threshold",
-            }
-        )
-
+        rules.append({
+            "threshold": unsafe_threshold,
+            "label": "Unsafe threshold",
+        })
 
     if rules:
-
-        rule_data = pd.DataFrame(
-            rules
-        )
-
         threshold_rules = (
-            alt.Chart(
-                rule_data
-            )
+            alt.Chart(pd.DataFrame(rules))
             .mark_rule(
-                strokeDash=[
-                    5,
-                    4,
-                ],
+                strokeDash=[5, 4],
                 color="#667085",
             )
             .encode(
                 y="threshold:Q",
-
                 tooltip=[
                     "label:N",
-
                     alt.Tooltip(
                         "threshold:Q",
                         format=".0%",
@@ -581,17 +420,9 @@ def organism_chart(
         )
 
     else:
+        chart = background + line
 
-        chart = (
-            background
-            + line
-        )
-
-
-    st.subheader(
-        title
-    )
-
+    st.subheader(title)
 
     st.altair_chart(
         chart.properties(
@@ -600,9 +431,7 @@ def organism_chart(
         width="stretch",
     )
 
-
     if unsafe_threshold > y_max:
-
         st.caption(
             "The chart uses a focused vertical scale so "
             "small recent changes remain visible. "
@@ -611,71 +440,43 @@ def organism_chart(
         )
 
     else:
-
         st.caption(
-            "The vertical scale is focused on recent values "
-            "and the relevant decision thresholds. "
-            "All displayed percentages are absolute probabilities."
+            "The vertical scale focuses on recent model "
+            "estimates and relevant decision thresholds. "
+            "All percentages are absolute model-estimated "
+            "probabilities."
         )
 
 
 # ==========================================================
-# LATEST VALUES
+# LATEST ESTIMATES AND CHANGE INDICATORS
 # ==========================================================
 
 latest = trends.iloc[-1]
 
-
 ecoli_change, _ = change_text(
-    trends[
-        "e_coli_probability"
-    ]
+    trends["e_coli_probability"]
 )
 
 entero_change, _ = change_text(
-    trends[
-        "enterococcus_probability"
-    ]
+    trends["enterococcus_probability"]
 )
 
-
-summary_left, summary_right = st.columns(
-    2
-)
-
+summary_left, summary_right = st.columns(2)
 
 with summary_left:
-
     trend_summary(
-        "Latest E. coli estimate",
-        float(
-            latest[
-                "e_coli_probability"
-            ]
-        ),
-        str(
-            latest[
-                "e_coli_risk"
-            ]
-        ),
+        "Latest reconstructed E. coli estimate",
+        float(latest["e_coli_probability"]),
+        str(latest["e_coli_risk"]),
         ecoli_change,
     )
 
-
 with summary_right:
-
     trend_summary(
-        "Latest Enterococcus estimate",
-        float(
-            latest[
-                "enterococcus_probability"
-            ]
-        ),
-        str(
-            latest[
-                "enterococcus_risk"
-            ]
-        ),
+        "Latest reconstructed Enterococcus estimate",
+        float(latest["enterococcus_probability"]),
+        str(latest["enterococcus_risk"]),
         entero_change,
     )
 
@@ -692,7 +493,6 @@ organism_chart(
     "E. coli Trend",
 )
 
-
 organism_chart(
     trends,
     "enterococcus_probability",
@@ -706,9 +506,7 @@ organism_chart(
 # DAILY VALUES
 # ==========================================================
 
-with st.expander(
-    "View daily values"
-):
+with st.expander("View daily values"):
 
     display = trends[
         [
@@ -721,54 +519,33 @@ with st.expander(
         ]
     ].copy()
 
-
-    display[
-        "prediction_date"
-    ] = (
-        display[
-            "prediction_date"
-        ]
-        .dt.strftime(
-            "%a, %b %d"
-        )
+    display["prediction_date"] = (
+        display["prediction_date"]
+        .dt.strftime("%a, %b %d")
     )
 
-
-    display[
-        "e_coli_probability"
-    ] = (
-        display[
-            "e_coli_probability"
-        ]
+    display["e_coli_probability"] = (
+        display["e_coli_probability"]
         .map(
-            lambda value:
-                f"{float(value):.1%}"
+            lambda value: f"{float(value):.1%}"
         )
     )
 
-
-    display[
-        "enterococcus_probability"
-    ] = (
-        display[
-            "enterococcus_probability"
-        ]
+    display["enterococcus_probability"] = (
+        display["enterococcus_probability"]
         .map(
-            lambda value:
-                f"{float(value):.1%}"
+            lambda value: f"{float(value):.1%}"
         )
     )
-
 
     display.columns = [
         "Date",
-        "E. coli",
+        "E. coli probability",
         "E. coli Risk",
-        "Enterococcus",
+        "Enterococcus probability",
         "Enterococcus Risk",
         "Overall Risk",
     ]
-
 
     st.dataframe(
         display.iloc[::-1],
@@ -778,15 +555,45 @@ with st.expander(
 
 
 # ==========================================================
-# SCIENTIFIC NOTE
+# SCIENTIFIC AND SAFETY NOTES
 # ==========================================================
 
 st.info(
-    "Previous-day values on this page are reconstructed "
-    "LagoonCast model estimates. They are not laboratory "
-    "measurements and should not be interpreted as official "
-    "historical advisories."
+    "**These are reconstructed model estimates, not lab results.** "
+    "Earlier-day values were calculated from available "
+    "environmental information and were not necessarily "
+    "published as forecasts on those dates. They are not "
+    "official historical advisories."
 )
 
+st.caption(PREDICTION_EXPLANATION)
+st.caption(SAFE_EXPLANATION)
+st.caption(OFFICIAL_PRIORITY_NOTICE)
+
+
+# ==========================================================
+# OFFICIAL RESOURCES
+# ==========================================================
+
+link_left, link_right = st.columns(2)
+
+with link_left:
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
+        width="stretch",
+    )
+
+with link_right:
+    st.link_button(
+        REPORTS_BUTTON_LABEL,
+        OFFICIAL_URL,
+        width="stretch",
+    )
+
+
+# ==========================================================
+# FOOTER
+# ==========================================================
 
 render_footer()
