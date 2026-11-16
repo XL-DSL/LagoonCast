@@ -6,7 +6,13 @@ import streamlit as st
 from utils.live_forecast import load_live_latest
 from utils.styles import apply_styles
 from utils.ui import (
+    ADVISORY_URL,
+    ADVISORY_BUTTON_LABEL,
+    HOMEPAGE_SAFETY_NOTICE,
+    OFFICIAL_PRIORITY_NOTICE,
     OFFICIAL_URL,
+    PREDICTION_EXPLANATION,
+    REPORTS_BUTTON_LABEL,
     SITE_NAME,
     freshness_chip,
     interpretation,
@@ -22,7 +28,7 @@ from utils.validation import (
 
 
 st.set_page_config(
-    page_title="LagoonCast | Model & Data",
+    page_title="LagoonCast | Current Forecast",
     page_icon="assets/LagoonCast_favicon.png",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -100,10 +106,11 @@ except Exception as exc:
 
     <a
         class="bg-primary-button"
-        href="{OFFICIAL_URL}"
+        href="{ADVISORY_URL}"
         target="_blank"
+        rel="noopener noreferrer"
     >
-        Check Official Advisories
+        {ADVISORY_BUTTON_LABEL}
     </a>
 
 </div>
@@ -129,8 +136,8 @@ if not validation["valid"]:
     )
 
     st.link_button(
-        "Check Official Water-Quality Advisories",
-        OFFICIAL_URL,
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
     )
 
     st.stop()
@@ -385,13 +392,51 @@ st.html(
 
         </div>
 
+        <!-- SAFETY NOTICE -->
+
+        <div style="
+            margin: 0 0 1.25rem;
+            padding: 0.9rem 1rem;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.10);
+            color: white;
+            line-height: 1.55;
+            font-size: 0.9rem;
+        ">
+
+            <strong>Before entering the water:</strong>
+            {HOMEPAGE_SAFETY_NOTICE}
+
+        </div>
+
+        <!-- OFFICIAL RESOURCE LINKS -->
+
         <a
             class="bg-primary-button hero-button"
-            href="{OFFICIAL_URL}"
+            href="{ADVISORY_URL}"
             target="_blank"
+            rel="noopener noreferrer"
         >
-            Check Official Water-Quality Advisories
+            {ADVISORY_BUTTON_LABEL}
         </a>
+
+        <p style="margin: 0.85rem 0 0;">
+
+            <a
+                href="{OFFICIAL_URL}"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="
+                    color: white;
+                    text-decoration: underline;
+                    font-size: 0.88rem;
+                "
+            >
+                {REPORTS_BUTTON_LABEL}
+            </a>
+
+        </p>
 
     </section>
 
@@ -489,7 +534,6 @@ st.html(
 </div>
 """
 )
-
 
 
 # ==========================================================
@@ -591,7 +635,6 @@ st.html(
 </div>
 """
 )
-
 
 
 # ==========================================================
@@ -792,19 +835,20 @@ with button2:
 # ==========================================================
 
 st.html(
-    """
+    f"""
 <div class="bg-home-shell">
 
     <div class="bg-support-note">
 
         <strong>
-            Important:
+            About these predictions:
         </strong>
 
-        BeachGuard is an experimental decision-support
-        forecast. It does not directly measure bacteria
-        and does not replace official laboratory results,
-        advisories, or closures.
+        {PREDICTION_EXPLANATION}
+
+        <p style="margin: 0.65rem 0 0;">
+            {OFFICIAL_PRIORITY_NOTICE}
+        </p>
 
     </div>
 
