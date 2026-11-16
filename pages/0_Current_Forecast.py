@@ -491,120 +491,107 @@ st.html(
 )
 
 
+
 # ==========================================================
-# EXPANDABLE E. COLI DETAILS
+# WATER QUALITY RISK CARDS
+# Both bacterial predictions remain fully visible.
 # ==========================================================
 
-with st.expander(
-    f"E. coli — {ecoli_risk}",
-    expanded=False,
-):
-    st.html(
-        f"""
+st.html(
+    f"""
 <div class="bg-home-shell">
 
-    <article class="bg-risk-card {ecoli_class}">
+    <div class="bg-risk-grid">
 
-        <div class="bg-risk-card-top">
+        <article class="bg-risk-card {ecoli_class}">
 
-            <div class="bg-organism-icon">
-                EC
-            </div>
+            <div class="bg-risk-card-top">
 
-            <div>
-
-                <div class="bg-risk-card-name">
-                    E. coli
+                <div class="bg-organism-icon">
+                    EC
                 </div>
 
-                <div class="bg-risk-pill {ecoli_class}">
-                    {risk_icon(ecoli_risk)}
-                    {ecoli_risk}
+                <div>
+
+                    <div class="bg-risk-card-name">
+                        E. coli
+                    </div>
+
+                    <div class="bg-risk-pill {ecoli_class}">
+                        {risk_icon(ecoli_risk)}
+                        {ecoli_risk}
+                    </div>
+
                 </div>
 
             </div>
 
-        </div>
+            <div class="bg-risk-value">
+                {ecoli_prob:.0%}
+            </div>
 
-        <div class="bg-risk-value">
-            {ecoli_prob:.0%}
-        </div>
+            <div class="bg-risk-value-label">
+                Predicted exceedance probability, not the
+                probability that swimming is safe
+            </div>
 
-        <div class="bg-risk-value-label">
-            Predicted exceedance probability, not the
-            probability that swimming is safe
-        </div>
+            {ecoli_meter}
 
-        {ecoli_meter}
+            <div class="bg-risk-threshold">
+                Model-defined concentration threshold:
+                <strong>235 MPN/100 mL</strong>
+            </div>
 
-        <div class="bg-risk-threshold">
-            Model-defined concentration threshold:
-            <strong>235 MPN/100 mL</strong>
-        </div>
+        </article>
 
-    </article>
+
+        <article class="bg-risk-card {entero_class}">
+
+            <div class="bg-risk-card-top">
+
+                <div class="bg-organism-icon">
+                    EN
+                </div>
+
+                <div>
+
+                    <div class="bg-risk-card-name">
+                        Enterococcus
+                    </div>
+
+                    <div class="bg-risk-pill {entero_class}">
+                        {risk_icon(entero_risk)}
+                        {entero_risk}
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="bg-risk-value">
+                {entero_prob:.0%}
+            </div>
+
+            <div class="bg-risk-value-label">
+                Predicted exceedance probability, not the
+                probability that swimming is safe
+            </div>
+
+            {entero_meter}
+
+            <div class="bg-risk-threshold">
+                Model-defined concentration threshold:
+                <strong>130 MPN/100 mL</strong>
+            </div>
+
+        </article>
+
+    </div>
 
 </div>
 """
-    )
+)
 
-
-# ==========================================================
-# EXPANDABLE ENTEROCOCCUS DETAILS
-# ==========================================================
-
-with st.expander(
-    f"Enterococcus — {entero_risk}",
-    expanded=False,
-):
-    st.html(
-        f"""
-<div class="bg-home-shell">
-
-    <article class="bg-risk-card {entero_class}">
-
-        <div class="bg-risk-card-top">
-
-            <div class="bg-organism-icon">
-                EN
-            </div>
-
-            <div>
-
-                <div class="bg-risk-card-name">
-                    Enterococcus
-                </div>
-
-                <div class="bg-risk-pill {entero_class}">
-                    {risk_icon(entero_risk)}
-                    {entero_risk}
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="bg-risk-value">
-            {entero_prob:.0%}
-        </div>
-
-        <div class="bg-risk-value-label">
-            Predicted exceedance probability, not the
-            probability that swimming is safe
-        </div>
-
-        {entero_meter}
-
-        <div class="bg-risk-threshold">
-            Model-defined concentration threshold:
-            <strong>130 MPN/100 mL</strong>
-        </div>
-
-    </article>
-
-</div>
-"""
-    )
 
 
 # ==========================================================
