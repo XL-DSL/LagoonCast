@@ -1,3 +1,4 @@
+
 import html
 from datetime import date
 
@@ -24,21 +25,63 @@ PACIFIC_TIMEZONE = (
 )
 
 
-# San Mateo County Beach Data Map
+# Historical laboratory reports selected for LagoonCast.
+# Do not represent this folder as a live advisory dashboard.
 OFFICIAL_URL = (
-    "https://www.google.com/maps/d/viewer"
-    "?femb=1"
-    "&ll=37.41494222054769,-122.38601015000002"
-    "&mid=1Y0U-5M0-ej_PnH8i1mJYFaXBlok-8fE"
-    "&z=10"
+    "https://drive.google.com/drive/folders/"
+    "171NAXgey8FhasyTF34tdYJafFUIFNhK-"
 )
 
+# County-posted water-quality updates and advisories.
+ADVISORY_URL = (
+    "https://smchealth.org/division/divisions/"
+    "environmental-health-services/updates/"
+)
 
-# Keep the current repository URL until the repository
-# itself is renamed.
 GITHUB_URL = (
     "https://github.com/"
     "XL-DSL/LagoonCast"
+)
+
+REPORTS_BUTTON_LABEL = "View Water-Quality Reports"
+ADVISORY_BUTTON_LABEL = "Check County Advisories"
+
+
+# ==========================================================
+# SHARED PREDICTION AND SAFETY WORDING
+# ==========================================================
+
+PREDICTION_EXPLANATION = (
+    "LagoonCast uses environmental data and machine learning "
+    "to estimate bacterial water-quality risk. Its predictions "
+    "are not direct measurements of bacteria."
+)
+
+SAFE_EXPLANATION = (
+    'A "Safe" prediction means LagoonCast estimates lower '
+    "bacterial risk. It does not guarantee that the water "
+    "is safe for swimming."
+)
+
+OFFICIAL_PRIORITY_NOTICE = (
+    "Always check the latest official water-quality information "
+    "before entering the water. Official warnings and closures "
+    "take priority over LagoonCast predictions."
+)
+
+HOMEPAGE_SAFETY_NOTICE = (
+    "LagoonCast estimates bacterial risk; it does not test "
+    "the water. Even a Safe prediction cannot guarantee "
+    "safe conditions. Check official advisories before "
+    "entering the water."
+)
+
+MODEL_LIMITATION_NOTICE = (
+    "LagoonCast can incorrectly classify bacterial risk, "
+    "including predicting lower risk when bacterial levels "
+    "are elevated. It is an informational forecasting tool, "
+    "not a replacement for laboratory testing or "
+    "public-health guidance."
 )
 
 
@@ -75,15 +118,16 @@ def interpretation(risk):
     return {
         "Safe":
             (
-                "The model currently predicts a low likelihood "
-                "of elevated bacterial risk."
+                "The model predicts lower bacterial risk, "
+                "but this does not guarantee safe water. "
+                "Check official advisories before water contact."
             ),
 
         "Caution":
             (
-                "The model predicts moderate or uncertain risk. "
-                "Check official San Mateo County beach information "
-                "before entering the water."
+                "The model predicts possible elevated bacterial "
+                "risk. Check official advisories before entering "
+                "the water."
             ),
 
         "Unsafe":
@@ -749,13 +793,10 @@ def render_footer(
 
         version_html = (
             " &nbsp;·&nbsp; "
-            + "<span>"
-            + html.escape(
-                str(
-                    model_version
-                )
-            )
-            + "</span>"
+            + f'<a href="{GITHUB_URL}" target="_blank" '
+              'rel="noopener noreferrer">Model '
+            + html.escape(str(model_version))
+            + "</a>"
         )
 
 
@@ -767,7 +808,7 @@ def render_footer(
 
         {APP_NAME}
         &nbsp;·&nbsp;
-        Experimental research prototype
+        Experimental water-quality forecast
         {version_html}
 
     </div>
@@ -780,7 +821,19 @@ def render_footer(
             target="_blank"
             rel="noopener noreferrer"
         >
-            Official San Mateo County Beach Status
+            Water-Quality Reports
+        </a>
+
+        <span>
+            ·
+        </span>
+
+        <a
+            href="{ADVISORY_URL}"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            County Advisories
         </a>
 
         <span>
