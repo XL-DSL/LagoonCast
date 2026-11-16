@@ -1,9 +1,15 @@
+
 import streamlit as st
 
 from utils.styles import apply_styles
 from utils.ui import (
+    ADVISORY_BUTTON_LABEL,
+    ADVISORY_URL,
     GITHUB_URL,
     OFFICIAL_URL,
+    PREDICTION_EXPLANATION,
+    REPORTS_BUTTON_LABEL,
+    SAFE_EXPLANATION,
     SITE_NAME,
     render_footer,
 )
@@ -22,7 +28,7 @@ st.title(
 
 st.caption(
     "A plain-language overview of what LagoonCast "
-    "does and why it was created."
+    "does, how it works, and why it was created."
 )
 
 
@@ -39,9 +45,17 @@ st.write(
     "Recreational-water bacteria measurements depend on "
     "laboratory sampling, so information about changing "
     "conditions may not always be available immediately. "
-    "LagoonCast explores whether environmental information "
-    "such as recent rainfall and temperature can provide "
-    "an additional early indication of elevated bacterial risk."
+    "Bacterial concentrations can change between routine "
+    "sampling events, particularly following rainfall "
+    "and runoff."
+)
+
+
+st.write(
+    "LagoonCast explores whether environmental information, "
+    "such as recent rainfall and temperature, can provide "
+    "an additional early indication of elevated bacterial "
+    "risk between laboratory measurements."
 )
 
 
@@ -92,7 +106,8 @@ with step1:
         line-height:1.5;
     ">
         LagoonCast uses recent and forecast environmental
-        information such as rainfall and temperature.
+        information, including rainfall and temperature,
+        as inputs for its predictions.
     </p>
 
 </div>
@@ -117,7 +132,7 @@ with step2:
         font-weight:800;
         font-size:0.75rem;
     ">
-        2 · LagoonCast MODEL
+        2 · MACHINE LEARNING
     </div>
 
     <h3 style="
@@ -132,9 +147,9 @@ with step2:
         font-size:0.82rem;
         line-height:1.5;
     ">
-        Separate machine-learning models estimate
-        the probability of elevated E. coli and
-        Enterococcus concentrations.
+        Models developed using historical bacterial
+        observations estimate the probability of
+        elevated E. coli and Enterococcus concentrations.
     </p>
 
 </div>
@@ -174,14 +189,20 @@ with step3:
         font-size:0.82rem;
         line-height:1.5;
     ">
-        LagoonCast translates the probabilities
-        into Safe, Caution, and Unsafe model
-        classifications for easier interpretation.
+        LagoonCast translates the predictions into
+        Safe, Caution, and Unsafe categories.
+        The more severe bacteria-specific category
+        determines the overall result.
     </p>
 
 </div>
 """
     )
+
+
+st.caption(
+    PREDICTION_EXPLANATION
+)
 
 
 # ==========================================================
@@ -210,10 +231,45 @@ with st.expander(
 ):
 
     st.write(
-        "The probability that the model assigns to bacterial "
-        "concentrations exceeding the concentration threshold "
-        "used by LagoonCast. A probability is not the same thing "
-        "as a measured bacteria concentration."
+        "The model-estimated probability that bacterial "
+        "concentrations exceed a concentration threshold "
+        "defined in LagoonCast."
+    )
+
+    st.write(
+        "This is not a measured bacteria concentration "
+        "or the probability that swimming is safe."
+    )
+
+
+with st.expander(
+    "Safe, Caution, and Unsafe"
+):
+
+    st.write(
+        "These are LagoonCast's model-generated risk "
+        "categories, not official government advisories "
+        "or closure classifications."
+    )
+
+    st.markdown(
+        """
+- **Safe:** Lower predicted bacterial risk.
+- **Caution:** Possible elevated bacterial risk.
+- **Unsafe:** Elevated predicted bacterial risk.
+"""
+    )
+
+    st.write(
+        "LagoonCast classifies E. coli and Enterococcus "
+        "separately. The overall category follows whichever "
+        "bacterium has the more severe classification."
+    )
+
+    st.write(
+        "Because the two models use different probability "
+        "boundaries, the higher percentage does not "
+        "necessarily determine the overall risk."
     )
 
 
@@ -222,10 +278,16 @@ with st.expander(
 ):
 
     st.write(
-        "The model was trained on earlier observations and "
-        "evaluated on later observations. This better reflects "
-        "the real forecasting task than randomly mixing older "
-        "and newer dates."
+        "The model was trained on earlier observations "
+        "and evaluated on later observations. This better "
+        "reflects the real forecasting task than randomly "
+        "mixing older and newer dates."
+    )
+
+    st.write(
+        "Historical evaluation results help assess model "
+        "performance but do not guarantee the accuracy "
+        "of future predictions."
     )
 
 
@@ -240,14 +302,38 @@ st.subheader(
 
 st.write(
     f"LagoonCast is currently demonstrated at {SITE_NAME}. "
-    "The project is intended as a research prototype and "
-    "a framework that could be evaluated at additional "
-    "recreational-water sites in the future."
+    "The project is intended as an experimental research "
+    "prototype and a framework that could be evaluated "
+    "at additional recreational-water sites in the future."
+)
+
+
+st.write(
+    "The current models were developed for this pilot "
+    "location and should not automatically be assumed "
+    "to perform equally well at other sites."
 )
 
 
 # ==========================================================
-# LINKS
+# IMPORTANT SAFETY NOTE
+# ==========================================================
+
+st.caption(
+    SAFE_EXPLANATION
+)
+
+
+st.caption(
+    "LagoonCast does not conduct laboratory testing "
+    "or issue official advisories. For guidance before "
+    "entering the water, see Safety & Data Notes "
+    "and the latest county advisories."
+)
+
+
+# ==========================================================
+# PROJECT AND OFFICIAL LINKS
 # ==========================================================
 
 col1, col2 = st.columns(
@@ -267,10 +353,21 @@ with col1:
 with col2:
 
     st.link_button(
-        "Official San Mateo County Beach Status",
-        OFFICIAL_URL,
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
         width="stretch",
     )
 
+
+st.markdown(
+    f"[{REPORTS_BUTTON_LABEL}]({OFFICIAL_URL})"
+    " — Water-quality reports, separate from current "
+    "county advisories."
+)
+
+
+# ==========================================================
+# FOOTER
+# ==========================================================
 
 render_footer()
