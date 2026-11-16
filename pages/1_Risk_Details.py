@@ -1,21 +1,34 @@
+
 import pandas as pd
 import streamlit as st
 
 from utils.live_forecast import load_live_latest
-from utils.styles import apply_styles, load_latest
+from utils.styles import apply_styles
 from utils.ui import (
+    ADVISORY_URL,
+    ADVISORY_BUTTON_LABEL,
     OFFICIAL_URL,
+    REPORTS_BUTTON_LABEL,
     SITE_NAME,
+    PREDICTION_EXPLANATION,
+    SAFE_EXPLANATION,
+    OFFICIAL_PRIORITY_NOTICE,
     freshness_chip,
     probability_meter,
     render_footer,
     risk_class,
+    risk_driver_text,
     risk_icon,
 )
+from utils.validation import validate_prediction_row
 
+
+# ==========================================================
+# PAGE CONFIGURATION
+# ==========================================================
 
 st.set_page_config(
-    page_title="LagoonCast | Model & Data",
+    page_title="LagoonCast | Risk Details",
     page_icon="assets/LagoonCast_favicon.png",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -24,22 +37,71 @@ st.set_page_config(
 apply_styles()
 
 
+# ==========================================================
+# LOAD CURRENT PREDICTION
+# Do not display an old saved prediction as current.
+# ==========================================================
+
 try:
     latest = load_live_latest()
 
 except Exception:
 
-    try:
-        latest = load_latest()
+    st.error(
+        "Current predictions are temporarily unavailable. "
+        "LagoonCast could not generate a valid live forecast. "
+        "Please refer to official water-quality information."
+    )
 
-    except Exception:
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
+    )
 
-        st.error(
-            "Prediction data is currently unavailable."
-        )
+    st.stop()
 
-        st.stop()
 
+# ==========================================================
+# VALIDATE CURRENT PREDICTION
+# ==========================================================
+
+validation = validate_prediction_row(
+    latest
+)
+
+if not validation["valid"]:
+
+    st.error(
+        "The current prediction did not pass data "
+        "validation and cannot be displayed reliably."
+    )
+
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
+    )
+
+    st.stop()
+
+
+if validation["stale"]:
+
+    st.warning(
+        "The latest prediction is outdated and is not "
+        "being presented as a current risk assessment."
+    )
+
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
+    )
+
+    st.stop()
+
+
+# ==========================================================
+# PREPARE DISPLAY VALUES
+# ==========================================================
 
 prediction_date = pd.to_datetime(
     latest["prediction_date"],
@@ -54,6 +116,11 @@ updated_date = pd.to_datetime(
 model_ver = str(
     latest["model_version"]
 ).upper()
+
+
+overall_risk = str(
+    latest["overall_risk"]
+).strip()
 
 
 ecoli_prob = float(
@@ -83,6 +150,62 @@ prediction_text = (
 )
 
 
+# ==========================================================
+# VERIFY OVERALL CLASSIFICATION
+# No recalculation or modification of model predictions.
+# ==========================================================
+
+risk_rank = {
+    "Safe": 0,
+    "Caution": 1,
+    "Unsafe": 2,
+}
+
+if (
+    overall_risk not in risk_rank
+    or ecoli_risk not in risk_rank
+    or entero_risk not in risk_rank
+):
+
+    st.error(
+        "One or more risk classifications are invalid."
+    )
+
+    st.stop()
+
+
+expected_overall = max(
+    (ecoli_risk, entero_risk),
+    key=lambda risk: risk_rank[risk],
+)
+
+
+if overall_risk != expected_overall:
+
+    st.error(
+        "The overall risk classification does not match "
+        "the bacteria-specific results. Please refer to "
+        "official water-quality information."
+    )
+
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
+    )
+
+    st.stop()
+
+
+driver_explanation = risk_driver_text(
+    ecoli_risk,
+    entero_risk,
+)
+
+
+# ==========================================================
+# HEADER
+# ==========================================================
+
 st.html(
     f"""
 <div class="bg-reading">
@@ -94,8 +217,8 @@ st.html(
         </h1>
 
         <p>
-            See the two bacteria-specific predictions
-            that determine the overall LagoonCast forecast
+            Explore the two bacteria-specific predictions
+            that determine LagoonCast's overall forecast
             for {SITE_NAME}.
         </p>
 
@@ -107,6 +230,18 @@ st.html(
 
     </div>
 
+</div>
+"""
+)
+
+
+# ==========================================================
+# HOW TO INTERPRET THE FORECAST
+# ==========================================================
+
+st.html(
+    f"""
+<div class="bg-reading">
 
     <div class="bg-how-read">
 
@@ -115,11 +250,15 @@ st.html(
         </strong>
 
         <p>
-            Each card shows the model-estimated probability
+            {PREDICTION_EXPLANATION}
+        </p>
+
+        <p>
+            Each percentage estimates the likelihood
             that one bacterial indicator exceeds its
-            elevated-risk concentration threshold.
-            The overall LagoonCast status uses the more
-            serious of the two individual risk levels.
+            model-defined concentration threshold.
+            These percentages do not represent the
+            probability that swimming is safe.
         </p>
 
     </div>
@@ -128,6 +267,49 @@ st.html(
 """
 )
 
+
+# ==========================================================
+# OVERALL RISK AND RISK DRIVER
+# ==========================================================
+
+st.html(
+    f"""
+<div class="bg-reading">
+
+    <div class="bg-small-explainer">
+
+        <strong>
+            Overall predicted risk: {overall_risk}
+        </strong>
+
+        <p>
+            {driver_explanation}
+        </p>
+
+        <p>
+            LagoonCast evaluates E. coli and Enterococcus
+            separately. The overall risk is determined
+            by whichever bacterium has the more severe
+            Safe, Caution, or Unsafe classification.
+            If both have the same classification,
+            both contribute equally to the overall category.
+        </p>
+
+        <p>
+            LagoonCast does not calculate a single
+            combined probability of water safety.
+        </p>
+
+    </div>
+
+</div>
+"""
+)
+
+
+# ==========================================================
+# BACTERIA PROBABILITY METERS
+# ==========================================================
 
 ecoli_meter = probability_meter(
     ecoli_prob,
@@ -143,6 +325,10 @@ entero_meter = probability_meter(
     entero_risk,
 )
 
+
+# ==========================================================
+# BACTERIA-SPECIFIC RISK CARDS
+# ==========================================================
 
 st.html(
     f"""
@@ -228,6 +414,10 @@ st.html(
 )
 
 
+# ==========================================================
+# TECHNICAL DETAILS
+# ==========================================================
+
 tech_left, tech_right = st.columns(
     2
 )
@@ -241,17 +431,22 @@ with tech_left:
 
         st.markdown(
             """
-**Concentration threshold:** 235 MPN/100 mL
+**Model-defined concentration threshold:** 235 MPN/100 mL
 
-**Display thresholds**
+**Probability display thresholds**
 
-- Safe: <10%
-- Caution: 10% to <50%
-- Unsafe: ≥50%
+- Safe: Below 10%
+- Caution: 10% to below 50%
+- Unsafe: 50% or higher
 
 E. coli is a fecal-indicator bacterium.
 Elevated levels can indicate increased
 contamination risk in recreational water.
+
+These concentration and probability thresholds
+describe LagoonCast's deployed model. They
+should not be interpreted as current official
+closure criteria.
 """
         )
 
@@ -264,20 +459,29 @@ with tech_right:
 
         st.markdown(
             """
-**Concentration threshold:** 130 MPN/100 mL
+**Model-defined concentration threshold:** 130 MPN/100 mL
 
-**Display thresholds**
+**Probability display thresholds**
 
-- Safe: <40%
-- Caution: 40% to <85%
-- Unsafe: ≥85%
+- Safe: Below 40%
+- Caution: 40% to below 85%
+- Unsafe: 85% or higher
 
 Enterococcus is commonly used as a
 fecal-indicator bacterium in marine and
 estuarine recreational waters.
+
+These concentration and probability thresholds
+describe LagoonCast's deployed model. They
+should not be interpreted as current official
+closure criteria.
 """
         )
 
+
+# ==========================================================
+# EXPLANATION OF DIFFERENT THRESHOLDS
+# ==========================================================
 
 st.html(
     """
@@ -291,11 +495,24 @@ st.html(
 
         <p>
             E. coli and Enterococcus use different
-            model probability boundaries because the two
-            models have different performance characteristics.
-            These probability boundaries are model-display
-            thresholds and are separate from the underlying
-            bacterial concentration standards.
+            probability boundaries because the two
+            models have different performance
+            characteristics.
+        </p>
+
+        <p>
+            These boundaries determine which risk
+            category LagoonCast displays. They are
+            separate from the bacterial concentration
+            thresholds used to define exceedances.
+        </p>
+
+        <p>
+            A higher probability does not necessarily
+            produce a more severe classification
+            than a lower probability for the other
+            bacterium, because the two models use
+            different display boundaries.
         </p>
 
     </div>
@@ -305,11 +522,63 @@ st.html(
 )
 
 
-st.link_button(
-    "Check Official Water-Quality Advisories",
-    OFFICIAL_URL,
+# ==========================================================
+# SAFETY AND UNCERTAINTY
+# ==========================================================
+
+st.subheader(
+    "Important safety information"
 )
 
+
+st.info(
+    SAFE_EXPLANATION
+)
+
+
+st.write(
+    "Even when LagoonCast predicts lower bacterial risk, "
+    "actual concentrations may be elevated. The models "
+    "can produce incorrect predictions and do not "
+    "directly measure bacteria in the water."
+)
+
+
+st.write(
+    OFFICIAL_PRIORITY_NOTICE
+)
+
+
+# ==========================================================
+# OFFICIAL INFORMATION LINKS
+# ==========================================================
+
+official_col1, official_col2 = st.columns(
+    2
+)
+
+
+with official_col1:
+
+    st.link_button(
+        ADVISORY_BUTTON_LABEL,
+        ADVISORY_URL,
+        width="stretch",
+    )
+
+
+with official_col2:
+
+    st.link_button(
+        REPORTS_BUTTON_LABEL,
+        OFFICIAL_URL,
+        width="stretch",
+    )
+
+
+# ==========================================================
+# FOOTER
+# ==========================================================
 
 render_footer(
     model_ver
