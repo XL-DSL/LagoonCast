@@ -1,14 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* ── Reset & base ── */
-html,
-body,
-.stApp {
-    font-family: 'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', sans-serif;
+/* LagoonCast — original design restored.
+   Only Streamlit alert contrast has been corrected. */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+html, body, .stApp {
+    font-family: "Inter", "Roboto", "Open Sans", "Lato", "Montserrat", sans-serif;
     color: #1A1A2E;
 }
 
-/* ── Keep Streamlit chrome clean WITHOUT breaking sidebar controls ── */
 #MainMenu {
     display: none !important;
 }
@@ -17,43 +17,34 @@ footer {
     display: none !important;
 }
 
-header[data-testid="stHeader"],
-header.stAppHeader {
+header[data-testid="stHeader"], header.stAppHeader {
     background: transparent !important;
     box-shadow: none !important;
 }
 
-[data-testid="stDecoration"] {
-    display: none !important;
-}
-
-[data-testid="stStatusWidget"] {
-    display: none !important;
-}
-
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
 .stDeployButton {
     display: none !important;
 }
 
-/* ── Page background ── */
 .stApp {
     background-color: #F5F7FA !important;
 }
 
-/* ── Remove default block padding so hero bleeds edge-to-edge ── */
 .block-container {
     padding: 0 !important;
     max-width: 100% !important;
 }
 
-/* ── Inner content wrapper ── */
 .bg-content {
     max-width: 900px;
     margin: 0 auto;
     padding: 2rem 2rem 4rem;
 }
 
-/* ── Sidebar ── */
+/* Sidebar */
+
 [data-testid="stSidebar"] {
     background-color: #1A1A2E !important;
     border-right: none !important;
@@ -95,7 +86,8 @@ header.stAppHeader {
     background: rgba(255,255,255,0.14) !important;
 }
 
-/* ── Hero banner ── */
+/* Hero */
+
 .bg-hero {
     width: 100%;
     padding: 3rem 2rem 2.5rem;
@@ -153,7 +145,8 @@ header.stAppHeader {
     margin: 1rem 0 0 0;
 }
 
-/* ── Stat row ── */
+/* Statistics */
+
 .bg-stat-row {
     display: flex;
     gap: 1rem;
@@ -184,7 +177,8 @@ header.stAppHeader {
     margin: 0;
 }
 
-/* ── Freshness banner ── */
+/* Freshness */
+
 .bg-freshness {
     border-radius: 8px;
     padding: 0.7rem 1rem;
@@ -208,7 +202,6 @@ header.stAppHeader {
     border: 1px solid #FECACA;
 }
 
-/* ── Section header ── */
 .bg-section-header {
     font-size: 0.75rem;
     font-weight: 700;
@@ -218,7 +211,8 @@ header.stAppHeader {
     margin: 0 0 1rem 0;
 }
 
-/* ── Bacteria cards ── */
+/* Legacy prediction cards */
+
 .bg-card-row {
     display: flex;
     gap: 1rem;
@@ -315,7 +309,6 @@ header.stAppHeader {
     line-height: 1.5;
 }
 
-/* ── Expanded detail card ── */
 .bg-detail-card {
     background: #FFFFFF;
     border-radius: 14px;
@@ -338,7 +331,8 @@ header.stAppHeader {
     margin: 0.4rem 0;
 }
 
-/* ── Explainer block ── */
+/* Information blocks */
+
 .bg-explainer {
     background: #EFF6FF;
     border-left: 4px solid #3B82F6;
@@ -350,7 +344,6 @@ header.stAppHeader {
     line-height: 1.6;
 }
 
-/* ── About page ── */
 .bg-about-section {
     margin-bottom: 2.5rem;
 }
@@ -409,7 +402,6 @@ header.stAppHeader {
     line-height: 1.5;
 }
 
-/* ── Disclaimer ── */
 .bg-disclaimer-box {
     background: #FEF3C7;
     border: 1px solid #FDE68A;
@@ -449,7 +441,6 @@ header.stAppHeader {
     border: 1px solid #E5E7EB;
 }
 
-/* ── Map ── */
 .bg-map-label {
     font-size: 0.8rem;
     color: #9CA3AF;
@@ -459,7 +450,6 @@ header.stAppHeader {
     gap: 0.3rem;
 }
 
-/* ── Footer ── */
 .bg-footer {
     text-align: center;
     font-size: 0.75rem;
@@ -469,51 +459,36 @@ header.stAppHeader {
     margin-top: 2rem;
 }
 
-/* ==========================================================
-   SIDEBAR — ALWAYS OPEN ON DESKTOP
-   Keep normal Streamlit behavior on phones.
-   ========================================================== */
+/* Sidebar behavior */
 
 @media (min-width: 641px) {
-
-    /* Do not allow users to collapse the desktop sidebar */
     [data-testid="stSidebarCollapseButton"] {
         display: none !important;
     }
 
-    /* No custom reopen / popup button */
     button[data-testid="stExpandSidebarButton"] {
         display: none !important;
     }
 }
-/* ==========================================================
-   LagoonCast DESIGN POLISH
-   Does not modify sidebar controls.
-   ========================================================== */
+
+/* Design tokens */
 
 :root {
     --brand: #0F6B78;
     --brand-dark: #0A5560;
-
     --text-main: #172033;
     --text-muted: #667085;
-
     --surface: #FFFFFF;
     --page: #F5F7FA;
     --border: #E4E7EC;
-
     --safe: #2E7D32;
     --caution: #B26A00;
     --unsafe: #C62828;
-
     --radius: 16px;
-
-    --shadow:
-        0 2px 10px rgba(16, 24, 40, 0.06);
+    --shadow: 0 2px 10px rgba(16, 24, 40, 0.06);
 }
 
-
-/* ── General public-facing width ── */
+/* Public-facing content width */
 
 .bg-home-shell {
     width: calc(100% - 2rem);
@@ -529,18 +504,13 @@ header.stAppHeader {
     margin-right: auto;
 }
 
-
-/* ── Compact homepage hero ── */
+/* Current forecast hero */
 
 .bg-home-hero {
     margin-top: 1.25rem;
-
     padding: 2rem 2.1rem;
-
     border-radius: 18px;
-
     color: #FFFFFF;
-
     box-shadow: var(--shadow);
 }
 
@@ -558,10 +528,8 @@ header.stAppHeader {
 
 .bg-home-eyebrow {
     margin-bottom: 0.35rem;
-
     font-size: 0.82rem;
     font-weight: 700;
-
     color: rgba(255,255,255,0.8);
 }
 
@@ -569,37 +537,27 @@ header.stAppHeader {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-
     gap: 0.65rem;
-
     margin-bottom: 1.25rem;
-
     font-size: 0.82rem;
-
     color: rgba(255,255,255,0.78);
 }
 
 .bg-home-status {
     display: flex;
     align-items: center;
-
     gap: 1rem;
 }
 
 .bg-home-status-icon {
     width: 48px;
     height: 48px;
-
     flex-shrink: 0;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     border-radius: 50%;
-
     background: rgba(255,255,255,0.18);
-
     font-size: 1.55rem;
     font-weight: 800;
 }
@@ -607,61 +565,42 @@ header.stAppHeader {
 .bg-home-status-label {
     font-size: 2.65rem;
     line-height: 1;
-
     font-weight: 800;
-
     letter-spacing: -0.03em;
 }
 
 .bg-home-status-message {
     max-width: 600px;
-
     margin: 0.45rem 0 0;
-
     color: rgba(255,255,255,0.9);
-
     font-size: 0.96rem;
     line-height: 1.5;
 }
 
-
-/* ── Buttons ── */
+/* Buttons */
 
 .bg-primary-button {
     display: inline-flex;
-
     align-items: center;
     justify-content: center;
-
     padding: 0.75rem 1.1rem;
-
     border-radius: 11px;
-
     background: var(--brand);
-
     color: #FFFFFF !important;
-
     font-size: 0.9rem;
     font-weight: 700;
-
     text-decoration: none !important;
-
-    transition:
-        background 0.15s ease,
-        transform 0.15s ease;
+    transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .bg-primary-button:hover {
     background: var(--brand-dark);
-
     transform: translateY(-1px);
 }
 
 .hero-button {
     margin-top: 1.35rem;
-
     background: #FFFFFF;
-
     color: #172033 !important;
 }
 
@@ -671,56 +610,43 @@ header.stAppHeader {
 
 .full-button {
     display: flex;
-
     width: 100%;
-
     margin: 1rem 0 1.5rem;
 }
 
-
-/* ── Freshness chip ── */
+/* Freshness chip */
 
 .bg-fresh-chip {
     display: inline-flex;
-
     align-items: center;
-
     padding: 0.3rem 0.6rem;
-
     border-radius: 999px;
-
     font-size: 0.75rem;
     font-weight: 700;
 }
 
 .bg-home-hero .bg-fresh-chip {
     background: rgba(255,255,255,0.16);
-
     color: #FFFFFF;
-
     border: 1px solid rgba(255,255,255,0.2);
 }
 
 .bg-fresh-chip.current {
     background: #EEF6F0;
-
     color: #2E6A39;
 }
 
 .bg-fresh-chip.warn {
     background: #FFF3D6;
-
     color: #8A5500;
 }
 
 .bg-fresh-chip.stale {
     background: #F2F4F7;
-
     color: #475467;
 }
 
-
-/* ── Section hierarchy ── */
+/* Section hierarchy */
 
 .bg-section-title-row {
     margin-top: 2.3rem;
@@ -729,62 +655,43 @@ header.stAppHeader {
 
 .bg-section-title {
     margin: 0;
-
     color: var(--text-main);
-
     font-size: 1.3rem;
     font-weight: 800;
-
     letter-spacing: -0.01em;
 }
 
 .bg-section-subtitle {
     max-width: 650px;
-
     margin: 0.3rem 0 0;
-
     color: var(--text-muted);
-
     font-size: 0.88rem;
     line-height: 1.55;
 }
 
-
-/* ── Risk cards ── */
+/* Prediction cards */
 
 .bg-risk-grid {
     display: grid;
-
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
 }
 
 .bg-risk-card,
 .bg-risk-detail-card {
     background: var(--surface);
-
     border: 1px solid var(--border);
     border-top: 4px solid transparent;
-
     border-radius: var(--radius);
-
     padding: 1.5rem;
-
     box-shadow: var(--shadow);
-
-    transition:
-        transform 0.15s ease,
-        box-shadow 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .bg-risk-card:hover,
 .bg-risk-detail-card:hover {
     transform: translateY(-2px);
-
-    box-shadow:
-        0 5px 18px rgba(16,24,40,0.08);
+    box-shadow: 0 5px 18px rgba(16,24,40,0.08);
 }
 
 .bg-risk-card.safe,
@@ -804,56 +711,39 @@ header.stAppHeader {
 
 .bg-risk-card-top {
     display: flex;
-
     align-items: center;
-
     gap: 0.8rem;
-
     margin-bottom: 1rem;
 }
 
 .bg-organism-icon {
     width: 42px;
     height: 42px;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     flex-shrink: 0;
-
     border-radius: 12px;
-
     background: #EAF4F5;
-
     color: var(--brand);
-
     font-size: 0.78rem;
     font-weight: 800;
 }
 
 .bg-risk-card-name {
     margin-bottom: 0.25rem;
-
     color: var(--text-main);
-
     font-size: 1.03rem;
     font-weight: 800;
 }
 
 .bg-risk-pill {
     display: inline-flex;
-
     align-items: center;
-
     gap: 0.3rem;
-
     border-radius: 999px;
-
     padding: 0.22rem 0.55rem;
-
     color: #FFFFFF;
-
     font-size: 0.72rem;
     font-weight: 700;
 }
@@ -873,14 +763,10 @@ header.stAppHeader {
 .bg-risk-value,
 .bg-detail-probability {
     margin-top: 0.5rem;
-
     font-size: 3.1rem;
     line-height: 1;
-
     font-weight: 800;
-
     letter-spacing: -0.04em;
-
     color: var(--text-main);
 }
 
@@ -901,73 +787,51 @@ header.stAppHeader {
 
 .bg-risk-value-label {
     margin-top: 0.25rem;
-
     color: var(--text-muted);
-
     font-size: 0.8rem;
 }
 
 .bg-risk-threshold {
     margin-top: 1rem;
-
     color: var(--text-muted);
-
     font-size: 0.78rem;
 }
 
-
-/* ── Probability meter ── */
+/* Probability meter */
 
 .bg-meter {
     position: relative;
-
     margin-top: 1.25rem;
     margin-bottom: 1.8rem;
-
     padding-bottom: 1rem;
 }
 
 .bg-meter-track {
     position: relative;
-
     width: 100%;
     height: 10px;
-
     border-radius: 999px;
-
     background: #E4E7EC;
 }
 
 .bg-meter-marker {
     position: absolute;
-
     top: -4px;
-
     width: 2px;
     height: 18px;
-
     background: #98A2B3;
-
     transform: translateX(-50%);
 }
 
 .bg-meter-pointer {
     position: absolute;
-
     top: 50%;
-
     width: 16px;
     height: 16px;
-
-    transform:
-        translate(-50%, -50%);
-
+    transform: translate(-50%, -50%);
     border-radius: 50%;
-
     border: 3px solid #FFFFFF;
-
-    box-shadow:
-        0 0 0 1px rgba(0,0,0,0.15);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.15);
 }
 
 .bg-meter-pointer.safe {
@@ -984,68 +848,50 @@ header.stAppHeader {
 
 .bg-meter-labels {
     position: relative;
-
     display: flex;
     justify-content: space-between;
-
     margin-top: 0.55rem;
-
     color: #98A2B3;
-
     font-size: 0.66rem;
 }
 
 .bg-meter-boundary {
     position: absolute;
-
     transform: translateX(-50%);
-
     white-space: nowrap;
 }
 
-
-/* ── Messages / notes ── */
+/* Explanation boxes — original palette */
 
 .bg-inline-notice,
 .bg-support-note,
 .bg-small-explainer,
 .bg-how-read {
     border-radius: 12px;
-
     padding: 1rem 1.1rem;
-
     font-size: 0.87rem;
     line-height: 1.6;
 }
 
 .bg-inline-notice {
     margin-top: 1rem;
-
     background: #FFF7E6;
-
     color: #7A4A00;
-
     border: 1px solid #F3D69C;
 }
 
 .bg-support-note {
     margin-top: 1.4rem;
-
     background: #F2F4F7;
-
     color: #475467;
-
     border: 1px solid #E4E7EC;
 }
 
 .bg-small-explainer,
 .bg-how-read {
     margin-bottom: 1.4rem;
-
     background: #EFF6FF;
-
     color: #344054;
-
     border-left: 4px solid var(--brand);
 }
 
@@ -1054,8 +900,7 @@ header.stAppHeader {
     margin-bottom: 0;
 }
 
-
-/* ── Reading pages ── */
+/* Reading pages */
 
 .bg-page-heading {
     margin-top: 2rem;
@@ -1064,36 +909,26 @@ header.stAppHeader {
 
 .bg-page-heading h1 {
     margin: 0;
-
     color: var(--text-main);
-
     font-size: 2rem;
     font-weight: 800;
-
     letter-spacing: -0.025em;
 }
 
 .bg-page-heading > p {
     margin: 0.4rem 0 0;
-
     color: var(--text-muted);
-
     font-size: 1rem;
     line-height: 1.6;
 }
 
 .bg-page-meta {
     display: flex;
-
     align-items: center;
     flex-wrap: wrap;
-
     gap: 0.5rem;
-
     margin-top: 0.8rem;
-
     color: var(--text-muted);
-
     font-size: 0.8rem;
 }
 
@@ -1104,219 +939,155 @@ header.stAppHeader {
 .bg-reading-section h2,
 .bg-reading-heading {
     color: var(--text-main);
-
     font-size: 1.25rem;
     font-weight: 800;
 }
 
 .bg-reading-section p {
     color: #344054;
-
     font-size: 1rem;
     line-height: 1.75;
 }
 
 .bg-risk-detail-grid {
     display: grid;
-
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
-
     margin-bottom: 1.2rem;
 }
 
 .bg-risk-detail-card h2 {
     margin: 0 0 0.25rem;
-
     font-size: 1.05rem;
 }
 
-
-/* ── About workflow ── */
+/* Workflow */
 
 .bg-workflow {
     display: flex;
-
     align-items: stretch;
-
     gap: 0.7rem;
-
     margin: 1rem 0 2.4rem;
 }
 
 .bg-workflow-card {
     flex: 1;
-
     background: #FFFFFF;
-
     border: 1px solid var(--border);
-
     border-radius: var(--radius);
-
     padding: 1.2rem;
-
     box-shadow: var(--shadow);
 }
 
 .bg-workflow-number {
     width: 30px;
     height: 30px;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     margin-bottom: 0.75rem;
-
     border-radius: 9px;
-
     background: #EAF4F5;
-
     color: var(--brand);
-
     font-size: 0.8rem;
     font-weight: 800;
 }
 
 .bg-workflow-card strong {
     display: block;
-
     margin-bottom: 0.4rem;
-
     color: var(--text-main);
-
     font-size: 0.9rem;
 }
 
 .bg-workflow-card span {
     color: var(--text-muted);
-
     font-size: 0.8rem;
     line-height: 1.5;
 }
 
 .bg-workflow-arrow {
     display: flex;
-
     align-items: center;
     justify-content: center;
-
     color: #98A2B3;
-
     font-size: 1.2rem;
 }
 
-
-/* ── Source cards ── */
+/* Sources */
 
 .bg-source-grid {
     display: grid;
-
-    grid-template-columns:
-        repeat(3, minmax(0, 1fr));
-
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.8rem;
-
     margin-top: 1rem;
     margin-bottom: 2rem;
 }
 
 .bg-source-card {
     display: block;
-
     background: #FFFFFF;
-
     border: 1px solid var(--border);
-
     border-radius: var(--radius);
-
     padding: 1.1rem;
-
     color: inherit !important;
-
     text-decoration: none !important;
-
     box-shadow: var(--shadow);
-
-    transition:
-        transform 0.15s ease,
-        border-color 0.15s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .bg-source-card:hover {
     transform: translateY(-2px);
-
     border-color: #A6CBCD;
 }
 
 .bg-source-label {
     display: block;
-
     margin-bottom: 0.4rem;
-
     color: var(--brand);
-
     font-size: 0.7rem;
     font-weight: 700;
 }
 
 .bg-source-card strong {
     color: var(--text-main);
-
     font-size: 0.9rem;
 }
 
 .bg-source-card p {
     margin: 0.4rem 0 0;
-
     color: var(--text-muted);
-
     font-size: 0.8rem;
     line-height: 1.5;
 }
 
-
-/* ── Safety / data notes ── */
+/* Safety and data notes */
 
 .bg-safety-card {
     display: flex;
-
     gap: 1rem;
-
     background: #FFF7E6;
-
     border: 1px solid #F3D69C;
-
     border-radius: var(--radius);
-
     padding: 1.5rem;
-
     color: #694100;
 }
 
 .bg-safety-icon {
     width: 40px;
     height: 40px;
-
     flex-shrink: 0;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     border-radius: 50%;
-
     background: #F7CF80;
-
     font-size: 1.2rem;
     font-weight: 800;
 }
 
 .bg-safety-card h2 {
     margin: 0 0 0.5rem;
-
     font-size: 1.05rem;
 }
 
@@ -1327,40 +1098,29 @@ header.stAppHeader {
 
 .bg-notes-grid {
     display: grid;
-
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
-
     margin-top: 1.5rem;
 }
 
 .bg-notes-card,
 .bg-data-source-summary {
     background: #FFFFFF;
-
     border: 1px solid var(--border);
-
     border-radius: var(--radius);
-
     padding: 1.3rem;
-
     box-shadow: var(--shadow);
 }
 
 .bg-notes-card h2,
 .bg-data-source-summary h2 {
     margin-top: 0;
-
     color: var(--text-main);
-
     font-size: 1rem;
 }
 
 .bg-notes-card p {
     color: var(--text-muted);
-
     font-size: 0.9rem;
     line-height: 1.65;
 }
@@ -1371,105 +1131,72 @@ header.stAppHeader {
 
 .bg-source-badges {
     display: flex;
-
     gap: 0.5rem;
-
     flex-wrap: wrap;
 }
 
 .bg-source-badges span {
     padding: 0.35rem 0.65rem;
-
     border-radius: 999px;
-
     background: #EEF4F5;
-
     color: #315E64;
-
     font-size: 0.75rem;
     font-weight: 600;
 }
 
-
-/* ── Empty state ── */
+/* Empty state */
 
 .bg-empty-state {
     width: calc(100% - 2rem);
     max-width: 650px;
-
     margin: 4rem auto;
-
     padding: 2rem;
-
     text-align: center;
-
     background: #FFFFFF;
-
     border: 1px solid var(--border);
-
     border-radius: var(--radius);
-
     box-shadow: var(--shadow);
 }
 
 .bg-empty-icon {
     width: 46px;
     height: 46px;
-
     margin: 0 auto 1rem;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     border-radius: 50%;
-
     background: #F2F4F7;
-
     color: #475467;
-
     font-weight: 800;
 }
 
-
-/* ── Shared footer ── */
+/* Footer */
 
 .bg-site-footer {
     width: calc(100% - 2rem);
     max-width: 980px;
-
     margin: 2.5rem auto 0;
-
     padding: 1.5rem 0 2rem;
-
     border-top: 1px solid var(--border);
-
     color: #98A2B3;
-
     font-size: 0.75rem;
     line-height: 1.6;
-
     text-align: center;
 }
 
 .bg-footer-links {
     display: flex;
-
     align-items: center;
     justify-content: center;
-
     flex-wrap: wrap;
-
     gap: 0.8rem;
-
     margin-top: 0.45rem;
 }
 
 .bg-footer-links a {
     color: var(--brand) !important;
-
     text-decoration: none !important;
-
     font-weight: 600;
 }
 
@@ -1477,20 +1204,14 @@ header.stAppHeader {
     text-decoration: underline !important;
 }
 
-
-/* ── Native Streamlit buttons ── */
-
 div[data-testid="stLinkButton"] a {
     border-radius: 11px !important;
-
     min-height: 42px !important;
 }
 
-
-/* ── Mobile ── */
+/* Mobile */
 
 @media (max-width: 640px) {
-
     .bg-home-shell,
     .bg-reading {
         width: calc(100% - 1.2rem);
@@ -1498,17 +1219,13 @@ div[data-testid="stLinkButton"] a {
 
     .bg-home-hero {
         margin-top: 0.6rem;
-
         padding: 1.45rem 1.15rem;
-
         border-radius: 14px;
     }
 
     .bg-home-meta {
         align-items: flex-start;
-
         flex-direction: column;
-
         gap: 0.4rem;
     }
 
@@ -1528,7 +1245,6 @@ div[data-testid="stLinkButton"] a {
     .hero-button,
     .bg-primary-button {
         width: 100%;
-
         box-sizing: border-box;
     }
 
@@ -1574,7 +1290,6 @@ div[data-testid="stLinkButton"] a {
 
     .bg-footer-links {
         flex-direction: column;
-
         gap: 0.25rem;
     }
 
@@ -1584,17 +1299,11 @@ div[data-testid="stLinkButton"] a {
 
     div[data-testid="stLinkButton"] a {
         width: 100%;
-
         justify-content: center;
     }
-
 }
 
-
-/* ── Very small phones ── */
-
 @media (max-width: 390px) {
-
     .bg-home-status-label {
         font-size: 1.95rem;
     }
@@ -1612,108 +1321,82 @@ div[data-testid="stLinkButton"] a {
     .bg-meter-boundary {
         font-size: 0.6rem;
     }
-
 }
-/* ==========================================================
-   GLOBAL PAGE LAYOUT FIX
-   Applies automatically to every Streamlit page.
-   ========================================================== */
 
-/* Center every page and stop content from touching screen edges */
+/* Global page layout */
+
 [data-testid="stMainBlockContainer"] {
     width: 100% !important;
     max-width: 1120px !important;
-
     margin-left: auto !important;
     margin-right: auto !important;
-
-    padding:
-        1.75rem
-        2rem
-        3rem
-        2rem
-        !important;
+    padding: 1.75rem 2rem 3rem 2rem !important;
 }
 
-
-/* Make custom reading wrappers use the available page width.
-   This fixes the Risk Details mismatch where the blue box
-   was narrow but the expanders stretched much wider. */
 .bg-reading {
     width: 100% !important;
     max-width: 100% !important;
-
     margin-left: auto !important;
     margin-right: auto !important;
 }
 
+/* Native Streamlit components */
 
-/* ==========================================================
-   NATIVE STREAMLIT COMPONENTS
-   Give all pages the same card/border treatment.
-   ========================================================== */
-
-
-/* Metric cards */
 [data-testid="stMetric"] {
     background: #FFFFFF !important;
-
     border: 1px solid #E4E7EC !important;
     border-radius: 14px !important;
-
     padding: 1rem 1.1rem !important;
-
-    box-shadow:
-        0 1px 4px rgba(16, 24, 40, 0.05) !important;
+    box-shadow: 0 1px 4px rgba(16,24,40,0.05) !important;
 }
 
-
-/* Expanders — fixes Risk Details technical-detail boxes */
 [data-testid="stExpander"] {
     background: #FFFFFF !important;
-
     border: 1px solid #E4E7EC !important;
     border-radius: 12px !important;
-
     overflow: hidden !important;
 }
 
-
-/* Dataframes / tables */
 [data-testid="stDataFrame"] {
     border: 1px solid #E4E7EC !important;
     border-radius: 12px !important;
-
     overflow: hidden !important;
 }
 
-
-/* Bordered Streamlit containers */
 [data-testid="stVerticalBlockBorderWrapper"] {
     border-color: #E4E7EC !important;
     border-radius: 16px !important;
-
     background: #FFFFFF !important;
 }
 
+/* Corrected native alerts:
+   Dark navy background + light sky-blue text. */
 
-/* Warning / info / error boxes */
 [data-testid="stAlert"] {
     border-radius: 12px !important;
+    background: #172033 !important;
+    color: #BAE6FD !important;
+    border: 1px solid #639BB8 !important;
 }
 
+[data-testid="stAlert"] [data-baseweb="notification"] {
+    background: transparent !important;
+    color: #BAE6FD !important;
+}
 
-/* Link buttons */
+[data-testid="stAlert"] :is(
+    p, span, strong, em, li, svg, div
+) {
+    color: #BAE6FD !important;
+    opacity: 1 !important;
+}
+
 [data-testid="stLinkButton"] a {
     border-radius: 11px !important;
-
     min-height: 42px !important;
 }
 
-
-/* ==========================================================
-   GLOBAL TYPOGRAPHY / SPACING
-   ========================================================== */
+/* Typography */
 
 [data-testid="stMainBlockContainer"] h1 {
     margin-top: 0 !important;
@@ -1727,22 +1410,12 @@ div[data-testid="stLinkButton"] a {
     margin-top: 1.4rem !important;
 }
 
-
-/* ==========================================================
-   MOBILE
-   ========================================================== */
+/* Global mobile layout */
 
 @media (max-width: 640px) {
-
     [data-testid="stMainBlockContainer"] {
         width: 100% !important;
-
-        padding:
-            1rem
-            0.85rem
-            2rem
-            0.85rem
-            !important;
+        padding: 1rem 0.85rem 2rem 0.85rem !important;
     }
 
     [data-testid="stMetric"] {
@@ -1755,89 +1428,56 @@ div[data-testid="stLinkButton"] a {
 
     [data-testid="stLinkButton"] a {
         width: 100% !important;
-
         justify-content: center !important;
     }
-
 }
-/* ==========================================================
-   GLOBAL METRIC CARD FIX
-   Applies to all st.metric() cards on every page
-   ========================================================== */
+
+/* Metrics */
 
 [data-testid="stMetric"] {
     background: #FFFFFF !important;
     border: 1px solid #E4E7EC !important;
     border-radius: 14px !important;
     padding: 1rem 1.1rem !important;
-
-    box-shadow:
-        0 1px 4px rgba(16, 24, 40, 0.05) !important;
+    box-shadow: 0 1px 4px rgba(16,24,40,0.05) !important;
 }
 
-
-/* Metric label: Live Forecast, Current Validation, etc. */
 [data-testid="stMetricLabel"],
 [data-testid="stMetricLabel"] p,
 [data-testid="stMetricLabel"] span,
 [data-testid="stMetricLabel"] div {
     color: #667085 !important;
-
     font-size: 0.78rem !important;
     font-weight: 600 !important;
-
     opacity: 1 !important;
 }
 
-
-/* Main metric value: Available, Pass, V2.1-LIVE, etc. */
 [data-testid="stMetricValue"],
 [data-testid="stMetricValue"] div,
 [data-testid="stMetricValue"] span {
     color: #172033 !important;
-
     font-weight: 700 !important;
-
     opacity: 1 !important;
 }
 
-
-/* Metric delta, if we ever use one */
 [data-testid="stMetricDelta"],
 [data-testid="stMetricDelta"] div,
 [data-testid="stMetricDelta"] span {
     opacity: 1 !important;
 }
 
-
-/* Make four-card rows look balanced */
 [data-testid="stMetric"] {
     min-height: 105px !important;
 }
 
-
-/* Mobile */
 @media (max-width: 640px) {
-
     [data-testid="stMetric"] {
         min-height: auto !important;
         padding: 0.9rem !important;
     }
-
 }
-/* ==========================================================
-   ROUND 1 — PUBLIC UI POLISH
-   Homepage + probability scales + footer + developer chrome
-   ========================================================== */
 
-
-/* ----------------------------------------------------------
-   PUBLIC RISK COLORS
-   One shared palette:
-   Safe = green
-   Caution = amber
-   Unsafe = red
-   ---------------------------------------------------------- */
+/* Public risk palette */
 
 :root {
     --risk-safe: #2E7D32;
@@ -1845,360 +1485,222 @@ div[data-testid="stLinkButton"] a {
     --risk-unsafe: #C62828;
 }
 
-
-/* ----------------------------------------------------------
-   FORECAST CONTEXT
-   Driver + generated timestamp
-   ---------------------------------------------------------- */
+/* Forecast context */
 
 .bg-forecast-context {
     max-width: 980px;
-
-    margin:
-        0.75rem
-        auto
-        1.2rem
-        auto;
-
-    padding:
-        0
-        0.25rem;
-
+    margin: 0.75rem auto 1.2rem;
+    padding: 0 0.25rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-
     gap: 1rem;
-
     flex-wrap: wrap;
 }
 
-
 .bg-risk-driver {
     color: #344054;
-
     font-size: 0.84rem;
     font-weight: 650;
-
     line-height: 1.45;
 }
-
 
 .bg-generated-time {
     color: #667085;
-
     font-size: 0.76rem;
-
     line-height: 1.45;
 }
 
-
 .bg-generated-time strong {
     color: #344054;
-
     font-weight: 700;
 }
 
-
-/* ----------------------------------------------------------
-   SEGMENTED PROBABILITY BAR
-   ---------------------------------------------------------- */
+/* Segmented probability meter */
 
 .bg-prob-meter {
     width: 100%;
-
     margin-top: 1rem;
 }
 
-
 .bg-prob-track {
     position: relative;
-
     display: flex;
-
     width: 100%;
     height: 14px;
-
     overflow: visible;
-
     border-radius: 999px;
-
     background: #EAECF0;
 }
-
 
 .bg-prob-zone {
     height: 100%;
 }
 
-
 .bg-prob-zone.safe {
     background: #81C784;
-
-    border-radius:
-        999px
-        0
-        0
-        999px;
+    border-radius: 999px 0 0 999px;
 }
-
 
 .bg-prob-zone.caution {
     background: #E4A63A;
 }
 
-
 .bg-prob-zone.unsafe {
     background: #D95C5C;
-
-    border-radius:
-        0
-        999px
-        999px
-        0;
+    border-radius: 0 999px 999px 0;
 }
-
-
-/* Marker */
 
 .bg-prob-marker {
     position: absolute;
-
     top: 50%;
-
-    transform:
-        translate(
-            -50%,
-            -50%
-        );
-
+    transform: translate(-50%, -50%);
     z-index: 4;
 }
-
 
 .bg-prob-marker-dot {
     width: 18px;
     height: 18px;
-
     border-radius: 50%;
-
     background: #FFFFFF;
-
     border: 4px solid #172033;
-
-    box-shadow:
-        0 1px 5px
-        rgba(
-            16,
-            24,
-            40,
-            0.24
-        );
+    box-shadow: 0 1px 5px rgba(16,24,40,0.24);
 }
-
-
-/* Zone labels are intentionally evenly spaced.
-   This prevents E. coli's small 0–10% Safe zone
-   from crushing the text together. */
 
 .bg-prob-zone-labels {
     display: grid;
-
-    grid-template-columns:
-        repeat(
-            3,
-            minmax(
-                0,
-                1fr
-            )
-        );
-
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.55rem;
-
     margin-top: 0.55rem;
 }
 
-
 .bg-prob-zone-labels > div {
     min-width: 0;
-
     display: flex;
     flex-direction: column;
-
     gap: 0.08rem;
 }
-
 
 .bg-prob-zone-labels > div:nth-child(2) {
     text-align: center;
 }
 
-
 .bg-prob-zone-labels > div:nth-child(3) {
     text-align: right;
 }
 
-
 .bg-prob-zone-labels strong {
     color: #344054;
-
     font-size: 0.68rem;
     font-weight: 750;
 }
 
-
 .bg-prob-zone-labels span {
     color: #98A2B3;
-
     font-size: 0.62rem;
     line-height: 1.2;
 }
 
-
-/* ----------------------------------------------------------
-   CONSISTENT PUBLIC RISK COLORS
-   ---------------------------------------------------------- */
+/* Risk badge colors */
 
 .bg-badge.safe,
 .timeline-tile-badge.safe {
     background: var(--risk-safe) !important;
 }
 
-
 .bg-badge.caution,
 .timeline-tile-badge.caution {
     background: var(--risk-caution) !important;
 }
-
 
 .bg-badge.unsafe,
 .timeline-tile-badge.unsafe {
     background: var(--risk-unsafe) !important;
 }
 
-
 .safe {
-    --current-risk-color:
-        var(--risk-safe);
+    --current-risk-color: var(--risk-safe);
 }
-
 
 .caution {
-    --current-risk-color:
-        var(--risk-caution);
+    --current-risk-color: var(--risk-caution);
 }
-
 
 .unsafe {
-    --current-risk-color:
-        var(--risk-unsafe);
+    --current-risk-color: var(--risk-unsafe);
 }
 
-
-/* ----------------------------------------------------------
-   FOOTER + HELPER TEXT
-   ---------------------------------------------------------- */
+/* Footer adjustments */
 
 .bg-site-footer {
     font-size: 0.78rem !important;
-
     line-height: 1.55 !important;
-
     color: #667085 !important;
 }
 
-
 .bg-site-footer-links {
     margin-top: 0.25rem;
-
     display: flex;
-
     align-items: center;
-
     flex-wrap: wrap;
-
     gap: 0.35rem;
 }
 
-
 .bg-site-footer a {
     color: #475467 !important;
-
     text-decoration: none;
 }
-
 
 .bg-site-footer a:hover {
     text-decoration: underline;
 }
 
-
-/* Avoid excessively tiny helper text */
-
 [data-testid="stCaptionContainer"],
 [data-testid="stCaptionContainer"] p {
     font-size: 0.78rem !important;
-
     line-height: 1.45 !important;
 }
 
-
-/* ----------------------------------------------------------
-   MINIMIZE STREAMLIT DEVELOPER CHROME
-   Does NOT touch the sidebar collapse/open buttons.
-   ---------------------------------------------------------- */
+/* Streamlit chrome */
 
 #MainMenu {
     visibility: hidden !important;
 }
 
-
 [data-testid="stToolbar"] {
     display: none !important;
 }
-
 
 [data-testid="stDecoration"] {
     display: none !important;
 }
 
-
-/* ----------------------------------------------------------
-   MOBILE
-   ---------------------------------------------------------- */
+/* Mobile forecast context */
 
 @media (max-width: 640px) {
-
     .bg-forecast-context {
         display: block;
-
         margin-top: 0.65rem;
     }
-
 
     .bg-generated-time {
         margin-top: 0.35rem;
     }
 
-
     .bg-prob-zone-labels {
         gap: 0.3rem;
     }
-
 
     .bg-prob-zone-labels strong {
         font-size: 0.64rem;
     }
 
-
     .bg-prob-zone-labels span {
         font-size: 0.58rem;
     }
-
 }
-/* ==========================================================
-   LAGOONCAST SIDEBAR LOGO — LARGE
-   ========================================================== */
+
+/* Sidebar logo */
 
 [data-testid="stSidebarHeader"] {
     height: auto !important;
@@ -2219,20 +1721,4 @@ div[data-testid="stLinkButton"] a {
     height: auto !important;
     max-height: none !important;
     object-fit: contain !important;
-}
-/* ==========================================================
-   STREAMLIT ALERT TEXT FIX
-   Keep warning/info/error text readable on light backgrounds
-   ========================================================== */
-
-[data-testid="stAlert"],
-[data-testid="stAlert"] p,
-[data-testid="stAlert"] span,
-[data-testid="stAlert"] div {
-    color: #344054 !important;
-}
-
-/* Warning boxes */
-[data-testid="stAlert"] {
-    font-weight: 500;
 }
