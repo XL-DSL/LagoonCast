@@ -13,7 +13,7 @@ import streamlit as st
 APP_NAME = "LagoonCast"
 
 # Public-facing app version, separate from the model version.
-APP_VERSION = "v1.0"
+APP_VERSION = "v 1.12"
 
 APP_TAGLINE = (
     "Recreational Water Quality Forecast"
