@@ -11,6 +11,8 @@ from utils.styles import apply_styles
 from utils.ui import (
     ADVISORY_BUTTON_LABEL,
     ADVISORY_URL,
+    MODEL_METHODS_URL,
+    METHODOLOGY_URL,
     OFFICIAL_PRIORITY_NOTICE,
     OFFICIAL_URL,
     PREDICTION_EXPLANATION,
@@ -126,11 +128,26 @@ except Exception as exc:
 # HEADER AND STATUS
 # ==========================================================
 
+selected_algorithms = "; ".join(
+    f"{bacteria_name}: {cfg['model']}"
+    for bacteria_name, cfg, _ in selected_rows
+)
+
 st.title("Model & Data")
 st.caption(
-    f"Technical details for LagoonCast's pilot at {SITE_NAME}. "
+    f"At {SITE_NAME}, LagoonCast uses machine-learning models "
+    "trained on historical bacteria measurements and weather data "
+    "to estimate bacterial exceedance risk between laboratory tests. "
+    f"Deployed algorithms: {selected_algorithms or 'Unavailable'}. "
     "The selected models and performance values below are loaded "
     "from the deployed model artifacts, not entered manually."
+)
+
+st.markdown(
+    f"**Deployed model release:** "
+    f"`{manifest.get('pipeline_version', 'Unavailable')}`"
+    f" · [Selected model details]({MODEL_METHODS_URL})"
+    f" · [Feature timing and methodology]({METHODOLOGY_URL})"
 )
 
 c1, c2 = st.columns(2)
