@@ -1,4 +1,3 @@
-
 import html
 from datetime import date
 
@@ -32,10 +31,10 @@ OFFICIAL_URL = (
     "171NAXgey8FhasyTF34tdYJafFUIFNhK-"
 )
 
-# County-posted water-quality updates and advisories.
+# County's direct Beach and Creek Updates posting page.
+# Verified Nov 25, 2026; recheck periodically in case its URL changes.
 ADVISORY_URL = (
-    "https://smchealth.org/division/divisions/"
-    "environmental-health-services/updates/"
+    "https://smchealth.org/8-27-beach-and-creek-updates/"
 )
 
 GITHUB_URL = (
@@ -43,8 +42,12 @@ GITHUB_URL = (
     "XL-DSL/LagoonCast"
 )
 
+# Link to the actual deployed-model and training-method sections.
+MODEL_METHODS_URL = GITHUB_URL + "#current-models"
+METHODOLOGY_URL = GITHUB_URL + "#feature-timing-and-leakage-prevention"
+
 REPORTS_BUTTON_LABEL = "View Water-Quality Reports"
-ADVISORY_BUTTON_LABEL = "Check County Advisories"
+ADVISORY_BUTTON_LABEL = "View Official San Mateo County Beach Postings"
 
 
 # ==========================================================
@@ -793,8 +796,8 @@ def render_footer(
 
         version_html = (
             " &nbsp;·&nbsp; "
-            + f'<a href="{GITHUB_URL}" target="_blank" '
-              'rel="noopener noreferrer">Model '
+            + f'<a href="{MODEL_METHODS_URL}" target="_blank" '
+              'rel="noopener noreferrer">Model release '
             + html.escape(str(model_version))
             + "</a>"
         )
@@ -808,7 +811,7 @@ def render_footer(
 
         {APP_NAME}
         &nbsp;·&nbsp;
-        Experimental water-quality forecast
+        Machine-learning water-quality estimates
         {version_html}
 
     </div>
@@ -852,9 +855,13 @@ def render_footer(
             ·
         </span>
 
-        <span>
-            LagoonCast methodology
-        </span>
+        <a
+            href="{METHODOLOGY_URL}"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            Model methodology
+        </a>
 
     </div>
 
