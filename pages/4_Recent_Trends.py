@@ -423,13 +423,13 @@ def organism_chart(
 
     st.subheader(title)
 
-    # Explicit light chart theme, independent of the
-    # surrounding Streamlit app's active chart theme.
-    # This also increases space around the axis labels.
+    # Keep the graph stationary when users scroll the page.
+    # Remove the plot frame and blend its background with the page.
+    # Hover tooltips remain available.
     styled_chart = (
         chart.properties(
             height=280,
-            background="#FFFFFF",
+            background="#F5F7FA",
             padding={
                 "left": 24,
                 "right": 14,
@@ -438,21 +438,21 @@ def organism_chart(
             },
         )
         .configure_view(
-            fill="#FFFFFF",
+            fill="#F5F7FA",
             stroke=None,
+            strokeWidth=0,
         )
         .configure_axis(
             labelColor="#344054",
             titleColor="#344054",
             gridColor="#E4E7EC",
-            domainColor="#98A2B3",
-            tickColor="#98A2B3",
+            domain=False,
+            ticks=False,
             labelFontSize=11,
             titleFontSize=12,
             labelPadding=7,
             titlePadding=18,
         )
-        .interactive()
     )
 
     st.altair_chart(
