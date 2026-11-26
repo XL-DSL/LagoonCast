@@ -52,10 +52,12 @@ try:
 except Exception as exc:
     live_prediction = False
     live_error = exc
+
     historical_text = ""
 
     try:
         historical = load_valid_latest()
+
         historical_date = pd.to_datetime(
             historical.get("prediction_date"),
             errors="coerce",
@@ -106,7 +108,7 @@ except Exception as exc:
 
 
 # ==========================================================
-# VALIDATE PREDICTION
+# VALIDATE PREDICTION BEFORE DISPLAY
 # ==========================================================
 
 validation = validate_prediction_row(latest)
@@ -161,13 +163,12 @@ entero_class = risk_class(entero_risk)
 
 
 # ==========================================================
-# COMBINED EXCEEDANCE ESTIMATE
+# COMBINED EXCEEDANCE PROBABILITY BOUNDS
 #
-# The separate models do not produce an exact probability
-# that either bacterium exceeds its threshold.
+# These values bound the probability that at least one
+# bacterial threshold is exceeded.
 #
-# These are mathematical lower and upper bounds.
-# Existing risk categories are unchanged.
+# They are not an independently trained joint probability.
 # ==========================================================
 
 combined_lower = max(ecoli_prob, entero_prob)
@@ -258,7 +259,7 @@ source_text = (
 
 # ==========================================================
 # BOX 1 — OVERALL RISK CLASSIFICATION
-# Original hero design preserved.
+# Existing hero design unchanged.
 # ==========================================================
 
 st.html(
@@ -395,49 +396,98 @@ st.html(
 
 # ==========================================================
 # BOX 2 — COMBINED EXCEEDANCE ESTIMATE
-# Separate from the classification hero.
+#
+# Uses the same segmented meter as the bacterial cards.
+#
+# Since E. coli and Enterococcus have different display
+# thresholds, the meter uses the scale of the bacterium
+# contributing the larger probability.
+#
+# The overall classification in Box 1 is unchanged.
 # ==========================================================
+
+if ecoli_prob >= entero_prob:
+    combined_source = "E. coli"
+    combined_source_risk = ecoli_risk
+    combined_caution = 0.10
+    combined_unsafe = 0.50
+else:
+    combined_source = "Enterococcus"
+    combined_source_risk = entero_risk
+    combined_caution = 0.40
+    combined_unsafe = 0.85
+
+combined_source_class = risk_class(combined_source_risk)
+
+combined_meter = probability_meter(
+    combined_lower,
+    combined_caution,
+    combined_unsafe,
+    combined_source_risk,
+)
+
 
 st.html(
     f"""
 <div class="bg-home-shell" style="margin-top: 1rem;">
 
-    <section
-        class="bg-risk-card"
-        style="border-top-color: #0F6B78;"
-    >
+    <article class="bg-risk-card {combined_source_class}">
 
-        <div
-            class="bg-risk-card-name"
-            style="font-size: 0.86rem;"
-        >
-            Combined Exceedance Estimate
+        <div class="bg-risk-card-top">
+
+            <div class="bg-organism-icon">
+                OR
+            </div>
+
+            <div>
+
+                <div class="bg-risk-card-name">
+                    Combined Exceedance Estimate
+                </div>
+
+                <div class="bg-risk-pill {combined_source_class}">
+                    {risk_icon(combined_source_risk)}
+                    {combined_source_risk} on {combined_source} scale
+                </div>
+
+            </div>
+
         </div>
 
-        <div
-            class="bg-risk-value"
-            style="color: #172033;"
-        >
-            At least {combined_lower:.0%}
+        <div class="bg-risk-value">
+            {combined_lower:.0%}
+        </div>
+
+        <div class="bg-risk-value-label">
+            Minimum estimated chance that at least one bacterium
+            exceeds its model-defined concentration threshold
+        </div>
+
+        <!-- SAME SEGMENTED SLIDER AS INDIVIDUAL CARDS -->
+
+        {combined_meter}
+
+        <div class="bg-risk-threshold">
+            Colored zones use the
+            <strong>{combined_source}</strong> probability bands,
+            because its prediction sets this lower bound.
+            The overall risk category above still follows whichever
+            bacterium has the more severe classification.
         </div>
 
         <p style="
-            font-size: 0.9rem;
-            color: #344054;
-            line-height: 1.6;
+            font-size: 0.8rem;
+            color: #475467;
+            line-height: 1.5;
             margin: 0.75rem 0 0;
         ">
-            Based on the two model estimates, the probability
-            that at least one bacterial threshold is exceeded
-            lies between {combined_lower:.0%} and
-            {combined_upper:.0%}.
-
-            This is a mathematical range, not a separately
-            trained combined probability or the probability
-            that swimming is safe.
+            Possible combined range:
+            {combined_lower:.0%}–{combined_upper:.0%}.
+            This is not an exact combined probability
+            or a swimming-safety guarantee.
         </p>
 
-    </section>
+    </article>
 
 </div>
 """
@@ -520,7 +570,7 @@ st.html(
 
 # ==========================================================
 # BOXES 3 & 4 — INDIVIDUAL BACTERIA
-# Always visible, side by side as before.
+# Always visible, side by side.
 # ==========================================================
 
 st.html(
@@ -621,7 +671,6 @@ st.html(
 
 # ==========================================================
 # LAST GENERATED DATE
-# Moved below the risk boxes.
 # ==========================================================
 
 st.html(
