@@ -1,4 +1,3 @@
-
 import pandas as pd
 import streamlit as st
 
@@ -22,64 +21,361 @@ apply_styles()
 
 
 # ==========================================================
-# ORIGINAL TIMELINE STYLING — VALUES UNCHANGED
+# TIMELINE STYLING
+# Original layout retained; small-label contrast improved.
 # ==========================================================
 
 st.html("""
 <style>
-.timeline-page-intro {color: #667085; font-size: 0.95rem; line-height: 1.55; margin-bottom: 1.5rem;}
-.timeline-section-header {display: flex; align-items: baseline; gap: 0.7rem; margin-top: 1.5rem; margin-bottom: 0.8rem;}
-.timeline-section-header h2 {margin: 0 !important; color: #172033; font-size: 1.15rem; font-weight: 800;}
-.timeline-section-header span {color: #98A2B3; font-size: 0.75rem;}
-.timeline-tile {min-height: 145px; display: flex; flex-direction: column; gap: 0.35rem;}
-.timeline-tile-day {color: #172033; font-size: 0.85rem; font-weight: 800;}
-.timeline-tile-date {color: #98A2B3; font-size: 0.68rem; margin-top: -0.2rem;}
-.timeline-tile-badge {display: inline-flex; width: fit-content; align-items: center; padding: 0.2rem 0.45rem; border-radius: 999px; color: #FFFFFF; font-size: 0.63rem; font-weight: 800; margin: 0.25rem 0;}
-.timeline-tile-badge.safe {background: #2E7D32;}
-.timeline-tile-badge.caution {background: #B26A00;}
-.timeline-tile-badge.unsafe {background: #C62828;}
-.timeline-tile-values {display: grid; gap: 0.2rem; margin-top: 0.15rem; color: #667085; font-size: 0.7rem;}
-.timeline-tile-values strong {color: #172033; font-weight: 800;}
-.timeline-horizon {color: #98A2B3; font-size: 0.62rem; margin-top: 0.15rem;}
-.timeline-today {display: grid; grid-template-columns: minmax(180px, 0.8fr) repeat(2, minmax(150px, 1fr)); gap: 1rem; align-items: center; background: #FFFFFF; border: 2px solid #0F6B78; border-radius: 16px; padding: 1.35rem 1.5rem; margin-bottom: 0.8rem; box-shadow: 0 4px 16px rgba(15, 107, 120, 0.10);}
-.timeline-today-label {color: #0F6B78; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;}
-.timeline-today-date {margin-top: 0.25rem; color: #172033; font-size: 1.15rem; font-weight: 800;}
-.timeline-today-risk {margin-top: 0.45rem; font-size: 1.55rem; font-weight: 800;}
-.timeline-today-risk.safe {color: #2E7D32;}
-.timeline-today-risk.caution {color: #B26A00;}
-.timeline-today-risk.unsafe {color: #C62828;}
-.timeline-today-bacteria {background: #F8FAFC; border-radius: 12px; padding: 0.85rem 1rem;}
-.timeline-today-bacteria-name {color: #667085; font-size: 0.75rem; font-weight: 600;}
-.timeline-today-bacteria-value {margin-top: 0.2rem; color: #172033; font-size: 1.55rem; font-weight: 800;}
-.timeline-today-bacteria-risk {margin-top: 0.1rem; font-size: 0.7rem; font-weight: 700;}
-.timeline-today-bacteria-risk.safe {color: #2E7D32;}
-.timeline-today-bacteria-risk.caution {color: #B26A00;}
-.timeline-today-bacteria-risk.unsafe {color: #C62828;}
-.popup-summary {background: #FFFFFF; border: 1px solid #E4E7EC; border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: 1rem;}
-.popup-period {color: #98A2B3; font-size: 0.68rem; font-weight: 750; text-transform: uppercase; letter-spacing: 0.05em;}
-.popup-date {color: #172033; font-size: 1.15rem; font-weight: 800; margin-top: 0.2rem;}
-.popup-overall {margin-top: 0.55rem; font-size: 1.35rem; font-weight: 800;}
-.popup-overall.safe {color: #2E7D32;}
-.popup-overall.caution {color: #B26A00;}
-.popup-overall.unsafe {color: #C62828;}
-.popup-driver {margin-top: 0.75rem; background: #F8FAFC; color: #475467; border-radius: 10px; padding: 0.7rem 0.8rem; font-size: 0.8rem; line-height: 1.45;}
-.popup-bacteria-grid {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; margin-bottom: 1rem;}
-.popup-bacteria-card {background: #F8FAFC; border: 1px solid #EAECF0; border-radius: 12px; padding: 0.9rem 1rem;}
-.popup-bacteria-name {color: #667085; font-size: 0.75rem; font-weight: 650;}
-.popup-bacteria-value {color: #172033; font-size: 1.7rem; font-weight: 800; margin-top: 0.2rem;}
-.popup-bacteria-risk {font-size: 0.72rem; font-weight: 750; margin-top: 0.1rem;}
-.popup-bacteria-risk.safe {color: #2E7D32;}
-.popup-bacteria-risk.caution {color: #B26A00;}
-.popup-bacteria-risk.unsafe {color: #C62828;}
-div[data-testid="stButton"] > button {width: 100% !important; min-height: 34px !important; background: #FFFFFF !important; color: #344054 !important; border: 1px solid #D0D5DD !important; border-radius: 8px !important; font-size: 0.7rem !important; font-weight: 700 !important; padding: 0.3rem 0.5rem !important; box-shadow: none !important;}
-div[data-testid="stButton"] > button *, div[data-testid="stButton"] > button p, div[data-testid="stButton"] > button span {color: #344054 !important; opacity: 1 !important;}
-div[data-testid="stButton"] > button:hover {background: #F0F7F8 !important; color: #0F6B78 !important; border-color: #0F6B78 !important;}
-div[data-testid="stButton"] > button:hover *, div[data-testid="stButton"] > button:hover p, div[data-testid="stButton"] > button:hover span {color: #0F6B78 !important;}
-.timeline-future-note {background: #FFF8CC; color: #5C4A00; border: 1px solid #F1E59A; border-radius: 12px; padding: 0.8rem 1rem; margin-top: 0.8rem; margin-bottom: 1rem; font-size: 0.8rem; line-height: 1.5;}
+.timeline-page-intro {
+    color: #667085;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.8rem;
+}
+
+.timeline-section-header h2 {
+    margin: 0 !important;
+    color: #172033;
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.timeline-section-header span {
+    color: #667085;
+    font-size: 0.75rem;
+}
+
+.timeline-tile {
+    min-height: 145px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.timeline-tile-day {
+    color: #172033;
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.timeline-tile-date {
+    color: #667085;
+    font-size: 0.68rem;
+    margin-top: -0.2rem;
+}
+
+.timeline-tile-source {
+    font-size: 0.64rem;
+    font-weight: 700;
+    margin-top: 0.2rem;
+    line-height: 1.35;
+}
+
+.timeline-tile-source.past {
+    color: #475467;
+}
+
+.timeline-tile-source.future {
+    color: #0F6B78;
+}
+
+.timeline-tile-badge {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    color: #FFFFFF;
+    font-size: 0.63rem;
+    font-weight: 800;
+    margin: 0.25rem 0;
+}
+
+.timeline-tile-badge.safe {
+    background: #2E7D32;
+}
+
+.timeline-tile-badge.caution {
+    background: #B26A00;
+}
+
+.timeline-tile-badge.unsafe {
+    background: #C62828;
+}
+
+.timeline-tile-values {
+    display: grid;
+    gap: 0.2rem;
+    margin-top: 0.15rem;
+    color: #667085;
+    font-size: 0.7rem;
+}
+
+.timeline-tile-values strong {
+    color: #172033;
+    font-weight: 800;
+}
+
+.timeline-tile-driver {
+    color: #344054;
+    font-size: 0.65rem;
+    line-height: 1.35;
+    margin-top: 0.2rem;
+}
+
+.timeline-horizon {
+    color: #475467;
+    font-size: 0.62rem;
+    margin-top: 0.15rem;
+}
+
+.timeline-today {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 0.8fr)
+        repeat(2, minmax(150px, 1fr));
+    gap: 1rem;
+    align-items: center;
+    background: #FFFFFF;
+    border: 2px solid #0F6B78;
+    border-radius: 16px;
+    padding: 1.35rem 1.5rem;
+    margin-bottom: 0.8rem;
+    box-shadow: 0 4px 16px rgba(15, 107, 120, 0.10);
+}
+
+.timeline-today-label {
+    color: #0F6B78;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.timeline-today-date {
+    margin-top: 0.25rem;
+    color: #172033;
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.timeline-today-risk {
+    margin-top: 0.45rem;
+    font-size: 1.55rem;
+    font-weight: 800;
+}
+
+.timeline-today-risk.safe {
+    color: #2E7D32;
+}
+
+.timeline-today-risk.caution {
+    color: #B26A00;
+}
+
+.timeline-today-risk.unsafe {
+    color: #C62828;
+}
+
+.timeline-today-bacteria {
+    background: #F8FAFC;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+}
+
+.timeline-today-bacteria-name {
+    color: #667085;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.timeline-today-bacteria-value {
+    margin-top: 0.2rem;
+    color: #172033;
+    font-size: 1.55rem;
+    font-weight: 800;
+}
+
+.timeline-today-bacteria-risk {
+    margin-top: 0.1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.timeline-today-bacteria-risk.safe {
+    color: #2E7D32;
+}
+
+.timeline-today-bacteria-risk.caution {
+    color: #B26A00;
+}
+
+.timeline-today-bacteria-risk.unsafe {
+    color: #C62828;
+}
+
+.popup-summary {
+    background: #FFFFFF;
+    border: 1px solid #E4E7EC;
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.popup-period {
+    color: #98A2B3;
+    font-size: 0.68rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.popup-date {
+    color: #172033;
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin-top: 0.2rem;
+}
+
+.popup-overall {
+    margin-top: 0.55rem;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.popup-overall.safe {
+    color: #2E7D32;
+}
+
+.popup-overall.caution {
+    color: #B26A00;
+}
+
+.popup-overall.unsafe {
+    color: #C62828;
+}
+
+.popup-driver {
+    margin-top: 0.75rem;
+    background: #F8FAFC;
+    color: #475467;
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.popup-bacteria-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.popup-bacteria-card {
+    background: #F8FAFC;
+    border: 1px solid #EAECF0;
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+}
+
+.popup-bacteria-name {
+    color: #667085;
+    font-size: 0.75rem;
+    font-weight: 650;
+}
+
+.popup-bacteria-value {
+    color: #172033;
+    font-size: 1.7rem;
+    font-weight: 800;
+    margin-top: 0.2rem;
+}
+
+.popup-bacteria-risk {
+    font-size: 0.72rem;
+    font-weight: 750;
+    margin-top: 0.1rem;
+}
+
+.popup-bacteria-risk.safe {
+    color: #2E7D32;
+}
+
+.popup-bacteria-risk.caution {
+    color: #B26A00;
+}
+
+.popup-bacteria-risk.unsafe {
+    color: #C62828;
+}
+
+div[data-testid="stButton"] > button {
+    width: 100% !important;
+    min-height: 34px !important;
+    background: #FFFFFF !important;
+    color: #344054 !important;
+    border: 1px solid #D0D5DD !important;
+    border-radius: 8px !important;
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
+    padding: 0.3rem 0.5rem !important;
+    box-shadow: none !important;
+}
+
+div[data-testid="stButton"] > button *,
+div[data-testid="stButton"] > button p,
+div[data-testid="stButton"] > button span {
+    color: #344054 !important;
+    opacity: 1 !important;
+}
+
+div[data-testid="stButton"] > button:hover {
+    background: #F0F7F8 !important;
+    color: #0F6B78 !important;
+    border-color: #0F6B78 !important;
+}
+
+div[data-testid="stButton"] > button:hover *,
+div[data-testid="stButton"] > button:hover p,
+div[data-testid="stButton"] > button:hover span {
+    color: #0F6B78 !important;
+}
+
+.timeline-future-note {
+    background: #FFF8CC;
+    color: #5C4A00;
+    border: 1px solid #F1E59A;
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    margin-top: 0.8rem;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
 @media (max-width: 720px) {
-    .timeline-today {grid-template-columns: 1fr; padding: 1.1rem;}
-    .timeline-tile {min-height: auto;}
-    .popup-bacteria-grid {grid-template-columns: 1fr;}
+    .timeline-today {
+        grid-template-columns: 1fr;
+        padding: 1.1rem;
+    }
+
+    .timeline-tile {
+        min-height: auto;
+    }
+
+    .popup-bacteria-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 """)
@@ -91,6 +387,7 @@ div[data-testid="stButton"] > button:hover *, div[data-testid="stButton"] > butt
 
 def risk_badge_html(risk):
     css = risk_class(risk)
+
     return (
         f'<span class="timeline-tile-badge {css}">'
         f'{risk_icon(risk)} {risk}'
@@ -259,10 +556,7 @@ st.caption(
 # ==========================================================
 
 try:
-
-    with st.spinner(
-        "Building LagoonCast timeline..."
-    ):
+    with st.spinner("Building LagoonCast timeline..."):
 
         recent = load_recent_estimates(
             days=8
@@ -273,7 +567,6 @@ try:
         )
 
 except Exception:
-
     st.error(
         "The LagoonCast timeline is temporarily unavailable."
     )
@@ -372,7 +665,7 @@ future["period"] = "future"
 
 # ==========================================================
 # SHARED DAY TILE
-# Existing visual classes and presentation are unchanged.
+# Original tile layout preserved.
 # ==========================================================
 
 def show_tile(row, period, today):
@@ -384,6 +677,40 @@ def show_tile(row, period, today):
     overall = str(
         row["overall_risk"]
     ).strip()
+
+    ecoli_risk = str(row["e_coli_risk"]).strip()
+    entero_risk = str(row["enterococcus_risk"]).strip()
+
+    # Show the driver on the tile when one bacterium
+    # has a more severe risk classification.
+    rank = {
+        "Safe": 0,
+        "Caution": 1,
+        "Unsafe": 2,
+    }
+
+    if rank.get(ecoli_risk, -1) > rank.get(entero_risk, -1):
+        driver_html = (
+            '<div class="timeline-tile-driver">'
+            'Driver: E. coli'
+            '</div>'
+        )
+
+    elif rank.get(entero_risk, -1) > rank.get(ecoli_risk, -1):
+        driver_html = (
+            '<div class="timeline-tile-driver">'
+            'Driver: Enterococcus'
+            '</div>'
+        )
+
+    else:
+        driver_html = ""
+
+    period_label = (
+        "Reconstructed estimate"
+        if period == "past"
+        else "Future forecast"
+    )
 
     ecoli_probability = float(
         row["e_coli_probability"]
@@ -421,6 +748,10 @@ def show_tile(row, period, today):
         {date_value.strftime('%b %d')}
     </div>
 
+    <div class="timeline-tile-source {period}">
+        {period_label}
+    </div>
+
     {risk_badge_html(overall)}
 
     <div class="timeline-tile-values">
@@ -436,6 +767,8 @@ def show_tile(row, period, today):
         </div>
 
     </div>
+
+    {driver_html}
 
     {horizon_html}
 
