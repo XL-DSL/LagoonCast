@@ -282,7 +282,7 @@ st.html(
 
         </div>
 
-        <div class="bg-home-status">
+        <div class="bg-home-status" style="margin-bottom: 1.25rem;">
 
             <div class="bg-home-status-icon">
                 {overall_icon}
@@ -344,7 +344,7 @@ st.html(
         <!-- SAFETY NOTICE -->
 
         <div style="
-            margin: 0 0 1.25rem;
+            margin: 0;
             padding: 0.9rem 1rem;
             border: 1px solid rgba(255,255,255,0.25);
             border-radius: 10px;
@@ -363,6 +363,7 @@ st.html(
 
         <a
             class="bg-primary-button hero-button"
+            style="margin-top: 1rem;"
             href="{ADVISORY_URL}"
             target="_blank"
             rel="noopener noreferrer"
@@ -370,7 +371,7 @@ st.html(
             {ADVISORY_BUTTON_LABEL}
         </a>
 
-        <p style="margin: 0.85rem 0 0;">
+        <p style="margin: 0.65rem 0 0;">
 
             <a
                 href="{OFFICIAL_URL}"
