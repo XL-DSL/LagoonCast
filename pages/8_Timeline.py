@@ -13,7 +13,6 @@ from utils.ui import (
     SITE_NAME,
     render_footer,
     risk_class,
-    risk_driver_text,
     risk_icon,
 )
 
@@ -22,7 +21,7 @@ apply_styles()
 
 # ==========================================================
 # TIMELINE STYLING
-# Original layout retained; small-label contrast improved.
+# Existing layout and colors preserved.
 # ==========================================================
 
 st.html("""
@@ -33,7 +32,6 @@ st.html("""
     line-height: 1.55;
     margin-bottom: 1.5rem;
 }
-
 .timeline-section-header {
     display: flex;
     align-items: baseline;
@@ -41,53 +39,44 @@ st.html("""
     margin-top: 1.5rem;
     margin-bottom: 0.8rem;
 }
-
 .timeline-section-header h2 {
     margin: 0 !important;
     color: #172033;
     font-size: 1.15rem;
     font-weight: 800;
 }
-
 .timeline-section-header span {
     color: #667085;
     font-size: 0.75rem;
 }
-
 .timeline-tile {
     min-height: 145px;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
 }
-
 .timeline-tile-day {
     color: #172033;
     font-size: 0.85rem;
     font-weight: 800;
 }
-
 .timeline-tile-date {
     color: #667085;
     font-size: 0.68rem;
     margin-top: -0.2rem;
 }
-
 .timeline-tile-source {
     font-size: 0.64rem;
     font-weight: 700;
     margin-top: 0.2rem;
     line-height: 1.35;
 }
-
 .timeline-tile-source.past {
     color: #475467;
 }
-
 .timeline-tile-source.future {
     color: #0F6B78;
 }
-
 .timeline-tile-badge {
     display: inline-flex;
     width: fit-content;
@@ -99,19 +88,15 @@ st.html("""
     font-weight: 800;
     margin: 0.25rem 0;
 }
-
 .timeline-tile-badge.safe {
     background: #2E7D32;
 }
-
 .timeline-tile-badge.caution {
     background: #B26A00;
 }
-
 .timeline-tile-badge.unsafe {
     background: #C62828;
 }
-
 .timeline-tile-values {
     display: grid;
     gap: 0.2rem;
@@ -119,25 +104,21 @@ st.html("""
     color: #667085;
     font-size: 0.7rem;
 }
-
 .timeline-tile-values strong {
     color: #172033;
     font-weight: 800;
 }
-
 .timeline-tile-driver {
     color: #344054;
     font-size: 0.65rem;
     line-height: 1.35;
     margin-top: 0.2rem;
 }
-
 .timeline-horizon {
     color: #475467;
     font-size: 0.62rem;
     margin-top: 0.15rem;
 }
-
 .timeline-today {
     display: grid;
     grid-template-columns:
@@ -152,7 +133,6 @@ st.html("""
     margin-bottom: 0.8rem;
     box-shadow: 0 4px 16px rgba(15, 107, 120, 0.10);
 }
-
 .timeline-today-label {
     color: #0F6B78;
     font-size: 0.7rem;
@@ -160,69 +140,56 @@ st.html("""
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
-
 .timeline-today-date {
     margin-top: 0.25rem;
     color: #172033;
     font-size: 1.15rem;
     font-weight: 800;
 }
-
 .timeline-today-risk {
     margin-top: 0.45rem;
     font-size: 1.55rem;
     font-weight: 800;
 }
-
 .timeline-today-risk.safe {
     color: #2E7D32;
 }
-
 .timeline-today-risk.caution {
     color: #B26A00;
 }
-
 .timeline-today-risk.unsafe {
     color: #C62828;
 }
-
 .timeline-today-bacteria {
     background: #F8FAFC;
     border-radius: 12px;
     padding: 0.85rem 1rem;
 }
-
 .timeline-today-bacteria-name {
     color: #667085;
     font-size: 0.75rem;
     font-weight: 600;
 }
-
 .timeline-today-bacteria-value {
     margin-top: 0.2rem;
     color: #172033;
     font-size: 1.55rem;
     font-weight: 800;
 }
-
 .timeline-today-bacteria-risk {
     margin-top: 0.1rem;
     font-size: 0.7rem;
     font-weight: 700;
 }
-
 .timeline-today-bacteria-risk.safe {
     color: #2E7D32;
 }
-
 .timeline-today-bacteria-risk.caution {
     color: #B26A00;
 }
-
 .timeline-today-bacteria-risk.unsafe {
     color: #C62828;
 }
-
 .popup-summary {
     background: #FFFFFF;
     border: 1px solid #E4E7EC;
@@ -230,7 +197,6 @@ st.html("""
     padding: 1rem 1.1rem;
     margin-bottom: 1rem;
 }
-
 .popup-period {
     color: #98A2B3;
     font-size: 0.68rem;
@@ -238,32 +204,26 @@ st.html("""
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-
 .popup-date {
     color: #172033;
     font-size: 1.15rem;
     font-weight: 800;
     margin-top: 0.2rem;
 }
-
 .popup-overall {
     margin-top: 0.55rem;
     font-size: 1.35rem;
     font-weight: 800;
 }
-
 .popup-overall.safe {
     color: #2E7D32;
 }
-
 .popup-overall.caution {
     color: #B26A00;
 }
-
 .popup-overall.unsafe {
     color: #C62828;
 }
-
 .popup-driver {
     margin-top: 0.75rem;
     background: #F8FAFC;
@@ -273,52 +233,43 @@ st.html("""
     font-size: 0.8rem;
     line-height: 1.45;
 }
-
 .popup-bacteria-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.8rem;
     margin-bottom: 1rem;
 }
-
 .popup-bacteria-card {
     background: #F8FAFC;
     border: 1px solid #EAECF0;
     border-radius: 12px;
     padding: 0.9rem 1rem;
 }
-
 .popup-bacteria-name {
     color: #667085;
     font-size: 0.75rem;
     font-weight: 650;
 }
-
 .popup-bacteria-value {
     color: #172033;
     font-size: 1.7rem;
     font-weight: 800;
     margin-top: 0.2rem;
 }
-
 .popup-bacteria-risk {
     font-size: 0.72rem;
     font-weight: 750;
     margin-top: 0.1rem;
 }
-
 .popup-bacteria-risk.safe {
     color: #2E7D32;
 }
-
 .popup-bacteria-risk.caution {
     color: #B26A00;
 }
-
 .popup-bacteria-risk.unsafe {
     color: #C62828;
 }
-
 div[data-testid="stButton"] > button {
     width: 100% !important;
     min-height: 34px !important;
@@ -331,26 +282,22 @@ div[data-testid="stButton"] > button {
     padding: 0.3rem 0.5rem !important;
     box-shadow: none !important;
 }
-
 div[data-testid="stButton"] > button *,
 div[data-testid="stButton"] > button p,
 div[data-testid="stButton"] > button span {
     color: #344054 !important;
     opacity: 1 !important;
 }
-
 div[data-testid="stButton"] > button:hover {
     background: #F0F7F8 !important;
     color: #0F6B78 !important;
     border-color: #0F6B78 !important;
 }
-
 div[data-testid="stButton"] > button:hover *,
 div[data-testid="stButton"] > button:hover p,
 div[data-testid="stButton"] > button:hover span {
     color: #0F6B78 !important;
 }
-
 .timeline-future-note {
     background: #FFF8CC;
     color: #5C4A00;
@@ -362,17 +309,14 @@ div[data-testid="stButton"] > button:hover span {
     font-size: 0.8rem;
     line-height: 1.5;
 }
-
 @media (max-width: 720px) {
     .timeline-today {
         grid-template-columns: 1fr;
         padding: 1.1rem;
     }
-
     .timeline-tile {
         min-height: auto;
     }
-
     .popup-bacteria-grid {
         grid-template-columns: 1fr;
     }
@@ -396,6 +340,95 @@ def risk_badge_html(risk):
 
 
 # ==========================================================
+# RISK DRIVER
+# SAME PROBABILITY THRESHOLDS AS PAGE 0
+#
+# E. coli:
+#   Safe     < 10%
+#   Caution  10% to < 50%
+#   Unsafe   >= 50%
+#
+# Enterococcus:
+#   Safe     < 40%
+#   Caution  40% to < 85%
+#   Unsafe   >= 85%
+#
+# Compare risk category severity, not raw percentages.
+# ==========================================================
+
+def category_from_probability(
+    probability,
+    caution_threshold,
+    unsafe_threshold,
+):
+    if probability >= unsafe_threshold:
+        return "Unsafe"
+
+    if probability >= caution_threshold:
+        return "Caution"
+
+    return "Safe"
+
+
+def day_driver_text(
+    ecoli_probability,
+    entero_probability,
+    overall_risk,
+):
+
+    ecoli_category = category_from_probability(
+        float(ecoli_probability),
+        0.10,
+        0.50,
+    )
+
+    entero_category = category_from_probability(
+        float(entero_probability),
+        0.40,
+        0.85,
+    )
+
+    rank = {
+        "Safe": 0,
+        "Caution": 1,
+        "Unsafe": 2,
+    }
+
+    ecoli_level = rank[ecoli_category]
+    entero_level = rank[entero_category]
+
+    expected_overall = (
+        ecoli_category
+        if ecoli_level >= entero_level
+        else entero_category
+    )
+
+    if str(overall_risk).strip() != expected_overall:
+        return (
+            "Risk labels do not match the display thresholds"
+        )
+
+    if ecoli_level == 0 and entero_level == 0:
+        return (
+            "Both Safe — no elevated risk driver"
+        )
+
+    if ecoli_level > entero_level:
+        return (
+            "Driver: E. coli"
+        )
+
+    if entero_level > ecoli_level:
+        return (
+            "Driver: Enterococcus"
+        )
+
+    return (
+        "Drivers: E. coli and Enterococcus (both)"
+    )
+
+
+# ==========================================================
 # DAY DETAILS POPUP
 # ==========================================================
 
@@ -408,9 +441,17 @@ def show_day_details(row_dict, period, today):
         row["prediction_date"]
     )
 
-    overall = str(row["overall_risk"]).strip()
-    ecoli_risk = str(row["e_coli_risk"]).strip()
-    entero_risk = str(row["enterococcus_risk"]).strip()
+    overall = str(
+        row["overall_risk"]
+    ).strip()
+
+    ecoli_risk = str(
+        row["e_coli_risk"]
+    ).strip()
+
+    entero_risk = str(
+        row["enterococcus_risk"]
+    ).strip()
 
     ecoli_probability = float(
         row["e_coli_probability"]
@@ -454,7 +495,7 @@ def show_day_details(row_dict, period, today):
     </div>
 
     <div class="popup-driver">
-        {risk_driver_text(ecoli_risk, entero_risk)}
+        {day_driver_text(ecoli_probability, entero_probability, overall)}
     </div>
 
 </div>
@@ -556,7 +597,10 @@ st.caption(
 # ==========================================================
 
 try:
-    with st.spinner("Building LagoonCast timeline..."):
+
+    with st.spinner(
+        "Building LagoonCast timeline..."
+    ):
 
         recent = load_recent_estimates(
             days=8
@@ -567,6 +611,7 @@ try:
         )
 
 except Exception:
+
     st.error(
         "The LagoonCast timeline is temporarily unavailable."
     )
@@ -665,7 +710,6 @@ future["period"] = "future"
 
 # ==========================================================
 # SHARED DAY TILE
-# Original tile layout preserved.
 # ==========================================================
 
 def show_tile(row, period, today):
@@ -678,39 +722,13 @@ def show_tile(row, period, today):
         row["overall_risk"]
     ).strip()
 
-    ecoli_risk = str(row["e_coli_risk"]).strip()
-    entero_risk = str(row["enterococcus_risk"]).strip()
+    ecoli_risk = str(
+        row["e_coli_risk"]
+    ).strip()
 
-    # Show the driver on the tile when one bacterium
-    # has a more severe risk classification.
-    rank = {
-        "Safe": 0,
-        "Caution": 1,
-        "Unsafe": 2,
-    }
-
-    if rank.get(ecoli_risk, -1) > rank.get(entero_risk, -1):
-        driver_html = (
-            '<div class="timeline-tile-driver">'
-            'Driver: E. coli'
-            '</div>'
-        )
-
-    elif rank.get(entero_risk, -1) > rank.get(ecoli_risk, -1):
-        driver_html = (
-            '<div class="timeline-tile-driver">'
-            'Driver: Enterococcus'
-            '</div>'
-        )
-
-    else:
-        driver_html = ""
-
-    period_label = (
-        "Reconstructed estimate"
-        if period == "past"
-        else "Future forecast"
-    )
+    entero_risk = str(
+        row["enterococcus_risk"]
+    ).strip()
 
     ecoli_probability = float(
         row["e_coli_probability"]
@@ -718,6 +736,24 @@ def show_tile(row, period, today):
 
     entero_probability = float(
         row["enterococcus_probability"]
+    )
+
+    # Apply the exact same thresholds used on Page 0.
+    # This covers E. coli, Enterococcus, both, and neither.
+    driver_html = (
+        '<div class="timeline-tile-driver">'
+        + day_driver_text(
+            ecoli_probability,
+            entero_probability,
+            overall,
+        )
+        + '</div>'
+    )
+
+    period_label = (
+        "Reconstructed estimate"
+        if period == "past"
+        else "Future forecast"
     )
 
     horizon_html = ""
@@ -932,9 +968,10 @@ if not current.empty:
     )
 
     st.caption(
-        risk_driver_text(
-            current_ecoli_risk,
-            current_entero_risk,
+        day_driver_text(
+            current_ecoli,
+            current_entero,
+            current_overall,
         )
     )
 
