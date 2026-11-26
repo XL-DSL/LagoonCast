@@ -1,4 +1,3 @@
-
 import altair as alt
 import pandas as pd
 import streamlit as st
@@ -357,7 +356,7 @@ def organism_chart(
             ),
             y=alt.Y(
                 f"{probability_column}:Q",
-                title="Model-estimated exceedance probability",
+                title="Exceedance probability",
                 scale=alt.Scale(
                     domain=[0, y_max]
                 ),
@@ -424,11 +423,42 @@ def organism_chart(
 
     st.subheader(title)
 
-    st.altair_chart(
+    # Explicit light chart theme, independent of the
+    # surrounding Streamlit app's active chart theme.
+    # This also increases space around the axis labels.
+    styled_chart = (
         chart.properties(
-            height=280
-        ).interactive(),
+            height=280,
+            background="#FFFFFF",
+            padding={
+                "left": 24,
+                "right": 14,
+                "top": 10,
+                "bottom": 12,
+            },
+        )
+        .configure_view(
+            fill="#FFFFFF",
+            stroke=None,
+        )
+        .configure_axis(
+            labelColor="#344054",
+            titleColor="#344054",
+            gridColor="#E4E7EC",
+            domainColor="#98A2B3",
+            tickColor="#98A2B3",
+            labelFontSize=11,
+            titleFontSize=12,
+            labelPadding=7,
+            titlePadding=18,
+        )
+        .interactive()
+    )
+
+    st.altair_chart(
+        styled_chart,
         width="stretch",
+        theme=None,
     )
 
     if unsafe_threshold > y_max:
