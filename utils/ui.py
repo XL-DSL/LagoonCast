@@ -1,4 +1,5 @@
 import html
+import re
 from datetime import date
 
 import pandas as pd
@@ -10,6 +11,9 @@ import streamlit as st
 # ==========================================================
 
 APP_NAME = "LagoonCast"
+
+# Public-facing app version, separate from the model version.
+APP_VERSION = "v1.0"
 
 APP_TAGLINE = (
     "Recreational Water Quality Forecast"
@@ -42,7 +46,7 @@ GITHUB_URL = (
     "XL-DSL/LagoonCast"
 )
 
-# Link to the actual deployed-model and training-method sections.
+# Links to deployed models and methodology.
 MODEL_METHODS_URL = GITHUB_URL + "#current-models"
 METHODOLOGY_URL = GITHUB_URL + "#feature-timing-and-leakage-prevention"
 
@@ -67,16 +71,19 @@ SAFE_EXPLANATION = (
 )
 
 OFFICIAL_PRIORITY_NOTICE = (
-    "Always check the latest official water-quality information "
-    "before entering the water. Official warnings and closures "
+    "Always double-check the latest official San Mateo County "
+    "water-quality advisories before entering the water. "
+    "Official laboratory results, warnings, and closures "
     "take priority over LagoonCast predictions."
 )
 
 HOMEPAGE_SAFETY_NOTICE = (
-    "LagoonCast estimates bacterial risk; it does not test "
-    "the water. Even a Safe prediction cannot guarantee "
-    "safe conditions. Check official advisories before "
-    "entering the water."
+    "LagoonCast uses machine learning to estimate bacterial "
+    "water-quality risk; it does not directly test the water. "
+    "Predictions can miss elevated bacteria, and a Safe result "
+    "does not guarantee safe swimming conditions. Always double-check "
+    "official San Mateo County advisories before entering the water. "
+    "Official postings and closures take priority."
 )
 
 MODEL_LIMITATION_NOTICE = (
@@ -161,28 +168,23 @@ def risk_driver_text(
         "Unsafe": 2,
     }
 
-
     e_coli_risk = str(
         e_coli_risk
     ).strip()
 
-
     enterococcus_risk = str(
         enterococcus_risk
     ).strip()
-
 
     e_rank = rank.get(
         e_coli_risk,
         0,
     )
 
-
     entero_rank = rank.get(
         enterococcus_risk,
         0,
     )
-
 
     if e_rank > entero_rank:
 
@@ -191,14 +193,12 @@ def risk_driver_text(
             "by the E. coli prediction."
         )
 
-
     if entero_rank > e_rank:
 
         return (
             "Overall risk is currently driven "
             "by the Enterococcus prediction."
         )
-
 
     if (
         e_coli_risk == "Safe"
@@ -209,7 +209,6 @@ def risk_driver_text(
             "Both bacteria are currently "
             "classified as Safe."
         )
-
 
     return (
         "Both bacteria are currently classified "
@@ -229,7 +228,6 @@ def _row_value(
     if row is None:
         return None
 
-
     try:
 
         value = row.get(
@@ -240,10 +238,8 @@ def _row_value(
 
         return None
 
-
     if value is None:
         return None
-
 
     try:
 
@@ -257,11 +253,9 @@ def _row_value(
 
         pass
 
-
     text = str(
         value
     ).strip()
-
 
     if (
         text == ""
@@ -275,7 +269,6 @@ def _row_value(
 
         return None
 
-
     return value
 
 
@@ -286,19 +279,16 @@ def _to_pacific_timestamp(
     if value is None:
         return None
 
-
     timestamp = pd.to_datetime(
         value,
         errors="coerce",
     )
-
 
     if pd.isna(
         timestamp
     ):
 
         return None
-
 
     try:
 
@@ -324,7 +314,6 @@ def _to_pacific_timestamp(
 
         return None
 
-
     return timestamp
 
 
@@ -337,16 +326,13 @@ def _format_timestamp(
 
         return "Unavailable"
 
-
     date_text = timestamp.strftime(
         "%b %d, %Y"
     )
 
-
     if not include_time:
 
         return date_text
-
 
     time_text = (
         timestamp
@@ -357,7 +343,6 @@ def _format_timestamp(
             "0"
         )
     )
-
 
     return (
         f"{date_text} · "
@@ -373,11 +358,9 @@ def _looks_date_only(
 
         return False
 
-
     text = str(
         value
     ).strip()
-
 
     return len(
         text
@@ -404,21 +387,17 @@ def successful_generation_text(
             field,
         )
 
-
         if raw_value is None:
 
             continue
-
 
         timestamp = _to_pacific_timestamp(
             raw_value
         )
 
-
         if timestamp is None:
 
             continue
-
 
         if _looks_date_only(
             raw_value
@@ -432,25 +411,21 @@ def successful_generation_text(
                 + " · exact run time unavailable"
             )
 
-
         return _format_timestamp(
             timestamp,
             include_time=True,
         )
-
 
     raw_value = _row_value(
         row,
         "data_last_updated",
     )
 
-
     if raw_value is not None:
 
         timestamp = _to_pacific_timestamp(
             raw_value
         )
-
 
         if timestamp is not None:
 
@@ -461,7 +436,6 @@ def successful_generation_text(
                 )
                 + " · exact run time unavailable"
             )
-
 
     return "Generation time unavailable"
 
@@ -485,17 +459,14 @@ def latest_input_text(
             field,
         )
 
-
         if raw_value is None:
 
             continue
-
 
         timestamp = pd.to_datetime(
             raw_value,
             errors="coerce",
         )
-
 
         if pd.isna(
             timestamp
@@ -503,11 +474,9 @@ def latest_input_text(
 
             continue
 
-
         return timestamp.strftime(
             "%b %d, %Y"
         )
-
 
     return "Input date unavailable"
 
@@ -525,7 +494,6 @@ def freshness_chip(
         errors="coerce",
     )
 
-
     if pd.isna(
         updated
     ):
@@ -535,7 +503,6 @@ def freshness_chip(
             'Input date unavailable'
             '</span>'
         )
-
 
     try:
 
@@ -555,7 +522,6 @@ def freshness_chip(
 
         pass
 
-
     today = (
         pd.Timestamp.now(
             tz=PACIFIC_TIMEZONE
@@ -566,12 +532,10 @@ def freshness_chip(
         .normalize()
     )
 
-
     days_old = (
         today
         - updated.normalize()
     ).days
-
 
     if days_old <= 0:
 
@@ -583,7 +547,6 @@ def freshness_chip(
             "current"
         )
 
-
     elif days_old == 1:
 
         text = (
@@ -594,7 +557,6 @@ def freshness_chip(
             "current"
         )
 
-
     elif days_old <= 7:
 
         text = (
@@ -604,7 +566,6 @@ def freshness_chip(
         css_class = (
             "warn"
         )
-
 
     else:
 
@@ -618,7 +579,6 @@ def freshness_chip(
         css_class = (
             "stale"
         )
-
 
     return (
         f'<span class="bg-fresh-chip {css_class}">'
@@ -648,12 +608,10 @@ def probability_meter(
         ),
     )
 
-
     value = (
         probability
         * 100
     )
-
 
     caution = (
         float(
@@ -662,7 +620,6 @@ def probability_meter(
         * 100
     )
 
-
     unsafe = (
         float(
             unsafe_threshold
@@ -670,24 +627,20 @@ def probability_meter(
         * 100
     )
 
-
     safe_width = max(
         caution,
         0,
     )
-
 
     caution_width = max(
         unsafe - caution,
         0,
     )
 
-
     unsafe_width = max(
         100 - unsafe,
         0,
     )
-
 
     marker_position = min(
         max(
@@ -697,11 +650,9 @@ def probability_meter(
         98.5,
     )
 
-
     css_class = risk_class(
         risk
     )
-
 
     return f"""
 <div class="bg-prob-meter {css_class}">
@@ -782,26 +733,42 @@ def probability_meter(
 
 
 # ==========================================================
-# FOOTER
+# DISPLAY VERSION / FOOTER
 # ==========================================================
+
+def model_release_label(model_version):
+    """Friendly display label; never modifies the actual model artifact ID."""
+    raw = str(model_version).strip()
+
+    if not raw or raw.lower() in {"none", "nan", "unavailable"}:
+        return None
+
+    # A legacy identifier such as V12 is displayed as v1.0.12.
+    # An existing dotted version remains unchanged.
+    legacy_match = re.fullmatch(r"[vV]?(\d+)", raw)
+
+    if legacy_match:
+        return f"v1.0.{int(legacy_match.group(1))}"
+
+    return raw
+
 
 def render_footer(
     model_version=None,
 ):
 
     version_html = ""
+    display_version = model_release_label(model_version)
 
-
-    if model_version:
+    if display_version:
 
         version_html = (
             " &nbsp;·&nbsp; "
             + f'<a href="{MODEL_METHODS_URL}" target="_blank" '
-              'rel="noopener noreferrer">Model release '
-            + html.escape(str(model_version))
+              'rel="noopener noreferrer">Model '
+            + html.escape(display_version)
             + "</a>"
         )
-
 
     st.html(
         f"""
@@ -809,7 +776,7 @@ def render_footer(
 
     <div>
 
-        {APP_NAME}
+        {APP_NAME} {APP_VERSION}
         &nbsp;·&nbsp;
         Machine-learning water-quality estimates
         {version_html}
