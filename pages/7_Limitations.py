@@ -1,8 +1,11 @@
-
 import streamlit as st
 
 from utils.styles import apply_styles
-from utils.ui import render_footer
+from utils.ui import (
+    ADVISORY_BUTTON_LABEL,
+    ADVISORY_URL,
+    render_footer,
+)
 
 
 apply_styles()
@@ -49,7 +52,7 @@ with card1:
         font-size:0.95rem;
         font-weight:800;
     ">
-        Experimental, not official
+        Not an official advisory
     </div>
 
     <div style="
@@ -58,8 +61,9 @@ with card1:
         line-height:1.5;
         margin-top:0.45rem;
     ">
-        LagoonCast is a research prototype and does
-        not issue government advisories or closures.
+        LagoonCast provides model-based water-quality
+        estimates, not official laboratory results,
+        beach advisories, or closures.
     </div>
 
 </div>
@@ -217,10 +221,11 @@ with st.expander(
 
 
 with st.expander(
-    "Potential false negatives"
+    "Prediction errors and model improvements"
 ):
 
     st.write(
+        "LagoonCast can make incorrect predictions. "
         "A false negative occurs when bacterial "
         "concentrations exceed the model-defined threshold "
         "but LagoonCast fails to identify the elevated risk."
@@ -231,6 +236,30 @@ with st.expander(
         "because a lower-risk prediction does not "
         "guarantee that actual bacterial levels are low. "
         "The model cannot identify every contamination event."
+    )
+
+    st.write(
+        "False positives can also occur, when LagoonCast "
+        "predicts elevated risk but laboratory results "
+        "do not exceed the model-defined threshold. "
+        "These predictions may lead to unnecessary caution."
+    )
+
+    st.write(
+        "Predictions can be compared with subsequent "
+        "laboratory measurements to assess performance. "
+        "Repeated misclassifications, especially false "
+        "negatives, would warrant reviewing the model's "
+        "input data, decision thresholds, and performance "
+        "before considering updates or retraining."
+    )
+
+    st.write(
+        "Any model changes would need to be evaluated "
+        "using appropriate historical testing before "
+        "being adopted. Until then, official laboratory "
+        "results and public-health advisories should "
+        "always take priority over LagoonCast estimates."
     )
 
 
@@ -258,9 +287,17 @@ with st.expander(
 # ==========================================================
 
 st.caption(
-    "For practical water-safety guidance, official "
-    "advisories, and explanations of how to interpret "
-    "Safe, Caution, and Unsafe, see Safety & Data Notes."
+    "LagoonCast is intended to provide additional "
+    "water-quality information, not to determine whether "
+    "swimming is safe. Even a Safe prediction cannot "
+    "guarantee safe conditions. Always double-check "
+    "official advisories before entering the water."
+)
+
+st.link_button(
+    ADVISORY_BUTTON_LABEL,
+    ADVISORY_URL,
+    width="stretch",
 )
 
 
