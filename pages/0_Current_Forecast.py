@@ -1,4 +1,3 @@
-
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
@@ -209,11 +208,35 @@ entero_class = risk_class(
 
 
 # ==========================================================
+# BOUNDED COMBINED EXCEEDANCE LIKELIHOOD
+#
+# An exact probability for E. coli OR Enterococcus
+# requires joint information that the separate models
+# do not provide.
+#
+# Lower bound: max(p1, p2)
+# Upper bound: min(1, p1 + p2)
+#
+# These bounds do not change the existing risk categories.
+# ==========================================================
+
+combined_lower = max(
+    ecoli_prob,
+    entero_prob,
+)
+
+combined_upper = min(
+    1.0,
+    ecoli_prob + entero_prob,
+)
+
+
+# ==========================================================
 # DISPLAY-ONLY RISK DRIVER
 #
 # Original model probabilities and classifications remain
-# unchanged. Identify which bacterium determines the overall
-# category without creating a combined probability.
+# unchanged. Identify which bacterium determines the
+# overall category.
 # ==========================================================
 
 risk_rank = {
@@ -303,9 +326,9 @@ generated_date_text = (
 
 
 source_text = (
-    "Live weather-based AquaCast forecast"
+    "Live weather-based LagoonCast forecast"
     if live_prediction
-    else "Latest validated saved AquaCast forecast"
+    else "Latest validated saved LagoonCast forecast"
 )
 
 
@@ -349,6 +372,46 @@ st.html(
                     {interpretation(overall_risk)}
                 </p>
 
+            </div>
+
+        </div>
+
+        <!-- COMBINED EXCEEDANCE LOWER BOUND -->
+
+        <div style="
+            margin: 1.1rem 0 1.25rem;
+            padding: 1rem 1.15rem;
+            background: rgba(0,0,0,0.14);
+            border: 1px solid rgba(255,255,255,0.24);
+            border-radius: 12px;
+            color: white;
+        ">
+
+            <div style="
+                font-size: 0.8rem;
+                font-weight: 700;
+            ">
+                Combined exceedance likelihood · lower bound
+            </div>
+
+            <div style="
+                font-size: 2.5rem;
+                line-height: 1.2;
+                font-weight: 800;
+                margin: 0.35rem 0;
+            ">
+                At least {combined_lower:.0%}
+            </div>
+
+            <div style="
+                font-size: 0.85rem;
+                line-height: 1.5;
+            ">
+                Based on the two model probabilities, the estimated
+                chance that at least one bacterial threshold is exceeded
+                lies between {combined_lower:.0%} and {combined_upper:.0%}.
+                This is a mathematical range, not a separately trained
+                combined probability or a swimming-safety probability.
             </div>
 
         </div>
@@ -476,7 +539,7 @@ if not live_prediction:
     <div class="bg-inline-notice">
         Live weather input is temporarily unavailable.
         Showing the latest validated saved
-        AquaCast prediction.
+        LagoonCast prediction.
     </div>
 
 </div>
@@ -523,8 +586,9 @@ st.html(
                 LagoonCast predicts E. coli and Enterococcus
                 separately. The overall Safe, Caution, or Unsafe
                 category follows the more severe of the two
-                bacteria-specific categories. It is not a combined
-                probability of water safety.
+                bacteria-specific categories. The combined range
+                shown above is a bound, not an exact joint probability
+                and not a measure of swimming safety.
             </p>
 
         </div>
@@ -538,11 +602,15 @@ st.html(
 
 # ==========================================================
 # WATER QUALITY RISK CARDS
-# Both bacterial predictions remain fully visible.
+# Expandable details preserve the original side-by-side cards.
 # ==========================================================
 
-st.html(
-    f"""
+with st.expander(
+    "View individual E. coli and Enterococcus probabilities",
+    expanded=False,
+):
+    st.html(
+        f"""
 <div class="bg-home-shell">
 
     <div class="bg-risk-grid">
@@ -634,7 +702,7 @@ st.html(
 
 </div>
 """
-)
+    )
 
 
 # ==========================================================
