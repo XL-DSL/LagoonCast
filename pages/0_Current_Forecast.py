@@ -35,16 +35,12 @@ st.set_page_config(
 
 apply_styles()
 
-
 SITE_LAT = 37.5602
 SITE_LON = -122.2910
 
 
 # ==========================================================
 # LOAD CURRENT PREDICTION
-# Try live forecast first.
-# If live forecasting fails, do not present an old saved
-# prediction as a current forecast.
 # ==========================================================
 
 live_prediction = True
@@ -56,22 +52,16 @@ try:
 except Exception as exc:
     live_prediction = False
     live_error = exc
-
     historical_text = ""
 
     try:
         historical = load_valid_latest()
-
         historical_date = pd.to_datetime(
-            historical.get(
-                "prediction_date"
-            ),
+            historical.get("prediction_date"),
             errors="coerce",
         )
 
-        if pd.notna(
-            historical_date
-        ):
+        if pd.notna(historical_date):
             historical_text = (
                 "<p>"
                 "The latest saved LagoonCast prediction is historical "
@@ -87,13 +77,9 @@ except Exception as exc:
         f"""
 <div class="bg-empty-state">
 
-    <div class="bg-empty-icon">
-        !
-    </div>
+    <div class="bg-empty-icon">!</div>
 
-    <h2>
-        Current forecast unavailable
-    </h2>
+    <h2>Current forecast unavailable</h2>
 
     <p>
         LagoonCast cannot retrieve a valid live forecast
@@ -120,18 +106,15 @@ except Exception as exc:
 
 
 # ==========================================================
-# VALIDATE PREDICTION BEFORE DISPLAYING IT
+# VALIDATE PREDICTION
 # ==========================================================
 
-validation = validate_prediction_row(
-    latest
-)
+validation = validate_prediction_row(latest)
 
 if not validation["valid"]:
     st.error(
         "Prediction currently unavailable. "
-        "The latest forecast did not pass "
-        "data validation."
+        "The latest forecast did not pass data validation."
     )
 
     st.link_button(
@@ -140,7 +123,6 @@ if not validation["valid"]:
     )
 
     st.stop()
-
 
 if validation["stale"]:
     st.warning(
@@ -163,80 +145,37 @@ updated_date = pd.to_datetime(
     errors="coerce",
 )
 
-model_ver = str(
-    latest["model_version"]
-).upper()
+model_ver = str(latest["model_version"]).upper()
 
+overall_risk = str(latest["overall_risk"]).strip()
+overall_class = risk_class(overall_risk)
+overall_icon = risk_icon(overall_risk)
 
-overall_risk = str(
-    latest["overall_risk"]
-).strip()
+ecoli_risk = str(latest["e_coli_risk"]).strip()
+ecoli_prob = float(latest["e_coli_probability"])
+ecoli_class = risk_class(ecoli_risk)
 
-overall_class = risk_class(
-    overall_risk
-)
-
-overall_icon = risk_icon(
-    overall_risk
-)
-
-
-ecoli_risk = str(
-    latest["e_coli_risk"]
-).strip()
-
-ecoli_prob = float(
-    latest["e_coli_probability"]
-)
-
-ecoli_class = risk_class(
-    ecoli_risk
-)
-
-
-entero_risk = str(
-    latest["enterococcus_risk"]
-).strip()
-
-entero_prob = float(
-    latest["enterococcus_probability"]
-)
-
-entero_class = risk_class(
-    entero_risk
-)
+entero_risk = str(latest["enterococcus_risk"]).strip()
+entero_prob = float(latest["enterococcus_probability"])
+entero_class = risk_class(entero_risk)
 
 
 # ==========================================================
-# BOUNDED COMBINED EXCEEDANCE LIKELIHOOD
+# COMBINED EXCEEDANCE ESTIMATE
 #
-# An exact probability for E. coli OR Enterococcus
-# requires joint information that the separate models
-# do not provide.
+# The separate models do not produce an exact probability
+# that either bacterium exceeds its threshold.
 #
-# Lower bound: max(p1, p2)
-# Upper bound: min(1, p1 + p2)
-#
-# These bounds do not change the existing risk categories.
+# These are mathematical lower and upper bounds.
+# Existing risk categories are unchanged.
 # ==========================================================
 
-combined_lower = max(
-    ecoli_prob,
-    entero_prob,
-)
-
-combined_upper = min(
-    1.0,
-    ecoli_prob + entero_prob,
-)
+combined_lower = max(ecoli_prob, entero_prob)
+combined_upper = min(1.0, ecoli_prob + entero_prob)
 
 
 # ==========================================================
 # DISPLAY-ONLY RISK DRIVER
-#
-# Original model probabilities and classifications remain
-# unchanged. Identify which bacterium determines the
-# overall category.
 # ==========================================================
 
 risk_rank = {
@@ -289,41 +228,26 @@ else:
 
 
 prediction_text = (
-    prediction_date.strftime(
-        "%b %d, %Y"
-    )
-    if pd.notna(
-        prediction_date
-    )
+    prediction_date.strftime("%b %d, %Y")
+    if pd.notna(prediction_date)
     else "Date unavailable"
 )
 
-
-freshness = freshness_chip(
-    updated_date
-)
-
+freshness = freshness_chip(updated_date)
 
 generated_date = pd.to_datetime(
     latest.get(
         "forecast_generated_at",
-        latest.get(
-            "data_last_updated"
-        ),
+        latest.get("data_last_updated"),
     ),
     errors="coerce",
 )
 
 generated_date_text = (
-    generated_date.strftime(
-        "%b %d, %Y"
-    )
-    if pd.notna(
-        generated_date
-    )
+    generated_date.strftime("%b %d, %Y")
+    if pd.notna(generated_date)
     else "Unavailable"
 )
-
 
 source_text = (
     "Live weather-based LagoonCast forecast"
@@ -333,7 +257,8 @@ source_text = (
 
 
 # ==========================================================
-# HERO / CURRENT FORECAST
+# BOX 1 — OVERALL RISK CLASSIFICATION
+# Original hero design preserved.
 # ==========================================================
 
 st.html(
@@ -372,46 +297,6 @@ st.html(
                     {interpretation(overall_risk)}
                 </p>
 
-            </div>
-
-        </div>
-
-        <!-- COMBINED EXCEEDANCE LOWER BOUND -->
-
-        <div style="
-            margin: 1.1rem 0 1.25rem;
-            padding: 1rem 1.15rem;
-            background: rgba(0,0,0,0.14);
-            border: 1px solid rgba(255,255,255,0.24);
-            border-radius: 12px;
-            color: white;
-        ">
-
-            <div style="
-                font-size: 0.8rem;
-                font-weight: 700;
-            ">
-                Combined exceedance likelihood · lower bound
-            </div>
-
-            <div style="
-                font-size: 2.5rem;
-                line-height: 1.2;
-                font-weight: 800;
-                margin: 0.35rem 0;
-            ">
-                At least {combined_lower:.0%}
-            </div>
-
-            <div style="
-                font-size: 0.85rem;
-                line-height: 1.5;
-            ">
-                Based on the two model probabilities, the estimated
-                chance that at least one bacterial threshold is exceeded
-                lies between {combined_lower:.0%} and {combined_upper:.0%}.
-                This is a mathematical range, not a separately trained
-                combined probability or a swimming-safety probability.
             </div>
 
         </div>
@@ -509,17 +394,50 @@ st.html(
 
 
 # ==========================================================
-# LAST GENERATED DATE
+# BOX 2 — COMBINED EXCEEDANCE ESTIMATE
+# Separate from the classification hero.
 # ==========================================================
 
 st.html(
     f"""
-<div class="bg-home-shell">
+<div class="bg-home-shell" style="margin-top: 1rem;">
 
-    <div class="bg-inline-notice">
-        Last successfully generated:
-        <strong>{generated_date_text}</strong>
-    </div>
+    <section
+        class="bg-risk-card"
+        style="border-top-color: #0F6B78;"
+    >
+
+        <div
+            class="bg-risk-card-name"
+            style="font-size: 0.86rem;"
+        >
+            Combined Exceedance Estimate
+        </div>
+
+        <div
+            class="bg-risk-value"
+            style="color: #172033;"
+        >
+            At least {combined_lower:.0%}
+        </div>
+
+        <p style="
+            font-size: 0.9rem;
+            color: #344054;
+            line-height: 1.6;
+            margin: 0.75rem 0 0;
+        ">
+            Based on the two model estimates, the probability
+            that at least one bacterial threshold is exceeded
+            lies between {combined_lower:.0%} and
+            {combined_upper:.0%}.
+
+            This is a mathematical range, not a separately
+            trained combined probability or the probability
+            that swimming is safe.
+        </p>
+
+    </section>
 
 </div>
 """
@@ -528,7 +446,6 @@ st.html(
 
 # ==========================================================
 # FALLBACK NOTICE
-# Only appears when the live forecast failed.
 # ==========================================================
 
 if not live_prediction:
@@ -586,9 +503,10 @@ st.html(
                 LagoonCast predicts E. coli and Enterococcus
                 separately. The overall Safe, Caution, or Unsafe
                 category follows the more severe of the two
-                bacteria-specific categories. The combined range
-                shown above is a bound, not an exact joint probability
-                and not a measure of swimming safety.
+                bacteria-specific categories.
+
+                The combined figure above is a bound,
+                not an exact probability of water safety.
             </p>
 
         </div>
@@ -601,16 +519,12 @@ st.html(
 
 
 # ==========================================================
-# WATER QUALITY RISK CARDS
-# Expandable details preserve the original side-by-side cards.
+# BOXES 3 & 4 — INDIVIDUAL BACTERIA
+# Always visible, side by side as before.
 # ==========================================================
 
-with st.expander(
-    "View individual E. coli and Enterococcus probabilities",
-    expanded=False,
-):
-    st.html(
-        f"""
+st.html(
+    f"""
 <div class="bg-home-shell">
 
     <div class="bg-risk-grid">
@@ -702,7 +616,26 @@ with st.expander(
 
 </div>
 """
-    )
+)
+
+
+# ==========================================================
+# LAST GENERATED DATE
+# Moved below the risk boxes.
+# ==========================================================
+
+st.html(
+    f"""
+<div class="bg-home-shell">
+
+    <div class="bg-inline-notice">
+        Last successfully generated:
+        <strong>{generated_date_text}</strong>
+    </div>
+
+</div>
+"""
+)
 
 
 # ==========================================================
@@ -763,7 +696,6 @@ RISK_COLORS = {
     ],
 }
 
-
 marker_color = RISK_COLORS.get(
     overall_risk,
     [
@@ -774,49 +706,26 @@ marker_color = RISK_COLORS.get(
     ],
 )
 
-
 map_data = pd.DataFrame(
     [
         {
-            "lat":
-                SITE_LAT,
-
-            "lon":
-                SITE_LON,
-
-            "site":
-                "Parkside Aquatic Park",
-
-            "overall":
-                overall_risk,
-
-            "ecoli":
-                f"{ecoli_prob:.1%}",
-
-            "entero":
-                f"{entero_prob:.1%}",
-
-            "date":
-                prediction_text,
+            "lat": SITE_LAT,
+            "lon": SITE_LON,
+            "site": "Parkside Aquatic Park",
+            "overall": overall_risk,
+            "ecoli": f"{ecoli_prob:.1%}",
+            "entero": f"{entero_prob:.1%}",
+            "date": prediction_text,
         }
     ]
 )
 
-
 layer = pdk.Layer(
     "ScatterplotLayer",
     data=map_data,
-    get_position=[
-        "lon",
-        "lat",
-    ],
+    get_position=["lon", "lat"],
     get_fill_color=marker_color,
-    get_line_color=[
-        255,
-        255,
-        255,
-        255,
-    ],
+    get_line_color=[255, 255, 255, 255],
     line_width_min_pixels=2,
     stroked=True,
     filled=True,
@@ -825,7 +734,6 @@ layer = pdk.Layer(
     pickable=True,
 )
 
-
 view_state = pdk.ViewState(
     latitude=SITE_LAT,
     longitude=SITE_LON,
@@ -833,14 +741,9 @@ view_state = pdk.ViewState(
     pitch=0,
 )
 
-
 deck = pdk.Deck(
-    layers=[
-        layer
-    ],
-
+    layers=[layer],
     initial_view_state=view_state,
-
     tooltip={
         "html":
             "<b>{site}</b><br/>"
@@ -848,18 +751,12 @@ deck = pdk.Deck(
             "E. coli: {ecoli}<br/>"
             "Enterococcus: {entero}<br/>"
             "Forecast date: {date}",
-
-        "style":
-            {
-                "backgroundColor":
-                    "#172033",
-
-                "color":
-                    "white",
-            },
+        "style": {
+            "backgroundColor": "#172033",
+            "color": "white",
+        },
     },
 )
-
 
 st.pydeck_chart(
     deck,
@@ -867,13 +764,9 @@ st.pydeck_chart(
 )
 
 
-button1, button2 = st.columns(
-    2
-)
-
+button1, button2 = st.columns(2)
 
 with button1:
-
     st.link_button(
         "Directions",
         (
@@ -884,9 +777,7 @@ with button1:
         width="stretch",
     )
 
-
 with button2:
-
     st.link_button(
         "Open in Google Maps",
         (
@@ -929,6 +820,4 @@ st.html(
 # FOOTER
 # ==========================================================
 
-render_footer(
-    model_ver
-)
+render_footer(model_ver)
